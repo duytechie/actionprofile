@@ -1,13 +1,16 @@
 name: Build WF
 on:
-  # push:
-  #   branches:
-  #     - main
+  push:
+    branches:
+      - main
 
   pull_request:
     branches:
       - main
       # - feature
+  workflow_dispatch:
+    schedule:
+      - cron: "10 14 * * 1-5" # Afternoon 2:10 pm, M-F
 
 jobs:
   Build:
