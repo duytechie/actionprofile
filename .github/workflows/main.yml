@@ -8,9 +8,12 @@ on:
     branches:
       - main
       # - feature
-  workflow_dispatch:
-    schedule:
-      - cron: "10 14 * * 1-5" # Afternoon 2:10 pm, M-F
+  # workflow_dispatch:
+  #   schedule:
+  #     - cron: "10 14 * * 1-5" # Afternoon 2:10 pm, M-F
+
+env:
+  ECR_REPOSITORY: "vprofile-app-image"
 
 permissions:
   contents: read
@@ -66,6 +69,9 @@ jobs:
           scan-type: "fs"
           scan-ref: "."
           format: json
+          # exit-code:
+          # 0 : continue if vulnerabilities are found
+          # 1 : the workflow will be failed if vulnerabilities are found
           exit-code: 0
           vuln-type: os,library
           output: trivy-results.json
@@ -76,3 +82,34 @@ jobs:
         with:
           name: trivy-scan-results
           path: trivy-results.json
+
+  BUILD_AND_PUBLISH:
+    name: BUILD_AND_PUBLISH
+    runs-on: ubuntu-latest
+    environment: production
+    needs: [Build, Testing, Security_Scan]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -f Docker-files/app/multistage/Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
