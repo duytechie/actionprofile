@@ -13,6 +13,7 @@ env:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   Build:
@@ -117,18 +118,23 @@ jobs:
     needs: [Build, Testing, Security_Scan]
     if: github.ref == 'refs/heads/main'
     steps:
+      - name: Code checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          image_name: ${{ github.repository }}
-          usename: ${{ github.actor }}
+          username: ${{ github.actor }}
           password: ${{ secrets.GHCR_ACCESS_TOKEN }}
 
-      - name: Build and publish a Docker image for ${{ github.repository }}
-        uses: macbre/push-to-ghcr@master
+      - name: Build and push Docker image to GHCR
         env:
           IMAGE_TAG: ${{ github.sha }}
+          IMAGE_NAME: ghcr.io/${{ github.repository }}
         run: |
-          # docker build -f Docker-files/app/multistage/Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push ghcr.io/$github.actor/myapp-$IMAGE_TAG
+          docker build -f Docker-files/app/multistage/Dockerfile -t $IMAGE_NAME:$IMAGE_TAG -t $IMAGE_NAME:latest .
+          docker push $IMAGE_NAME:$IMAGE_TAG
+          docker push $IMAGE_NAME:latest
