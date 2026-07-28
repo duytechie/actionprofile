@@ -8,9 +8,6 @@ on:
     branches:
       - main
 
-env:
-  ECR_REPOSITORY: "vprofile-app-image"
-
 permissions:
   contents: read
   packages: write
@@ -80,37 +77,6 @@ jobs:
           name: trivy-scan-results
           path: trivy-results.json
 
-  # BUILD_AND_PUBLISH:
-  #   name: BUILD_AND_PUBLISH
-  #   runs-on: ubuntu-latest
-  #   environment: production
-  #   needs: [Build, Testing, Security_Scan]
-  #   if: github.ref == 'refs/heads/main'
-  #   steps:
-  #     - name: Code checkout
-  #       uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0
-  #     - name: Configure AWS credentials
-  #       uses: aws-actions/configure-aws-credentials@v1
-  #       with:
-  #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  #         aws-region: ${{ vars.AWS_REGION }}
-  #
-  #     - name: Login to Amazon ECR
-  #       id: login-ecr
-  #       uses: aws-actions/amazon-ecr-login@v2
-  #
-  #     - name: Build, tag, and push image to Amazon ECR
-  #       id: build-image
-  #       env:
-  #         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-  #         IMAGE_TAG: ${{ github.sha }}
-  #       run: |
-  #         docker build -f Docker-files/app/multistage/Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-  #         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
   BUILD_AND_PUBLISH:
     name: BUILD_AND_PUBLISH
     runs-on: ubuntu-latest
@@ -123,6 +89,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -130,11 +102,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_ACCESS_KEY }}
 
-      - name: Build and push Docker image to GHCR
-        env:
-          IMAGE_TAG: ${{ github.sha }}
-          IMAGE_NAME: ghcr.io/${{ github.repository }}
-        run: |
-          docker build -f Docker-files/app/multistage/Dockerfile -t $IMAGE_NAME:$IMAGE_TAG -t $IMAGE_NAME:latest .
-          docker push $IMAGE_NAME:$IMAGE_TAG
-          docker push $IMAGE_NAME:latest
+      - name: Build and push Docker image to GHCR (multi-platform)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Docker-files/app/multistage/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ghcr.io/${{ github.repository }}:latest
