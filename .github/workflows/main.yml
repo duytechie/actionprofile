@@ -25,6 +25,13 @@ jobs:
       - name: Code checkout
         uses: actions/checkout@v5
 
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
       - name: Build, test and package (mvn install)
         # compile → test → package all in one Maven lifecycle.
         # No need for a separate 'mvn test' step afterward.
