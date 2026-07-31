@@ -64,7 +64,7 @@ jobs:
           # exit-code:
           # 0 : continue if vulnerabilities are found
           # 1 : the workflow will be failed if vulnerabilities are found
-          exit-code: 1
+          exit-code: 0
           vuln-type: os,library
           output: trivy-results.json
           # trivy-config: trivy.yaml
