@@ -1,4 +1,5 @@
 name: CI/CD Workflow
+
 on:
   push:
     branches:
@@ -13,11 +14,9 @@ permissions:
   packages: write
 
 jobs:
-  # ─────────────────────────────────────────────────────────────────────────
   # CI: Build, Test, and Package — runs once, produces a single WAR artifact
   # mvn install = compile + test + package in one Maven lifecycle
   # Checkstyle is added here so tests and style checks share the same run
-  # ─────────────────────────────────────────────────────────────────────────
   CI:
     name: Build, Test & Package
     runs-on: ubuntu-latest
@@ -28,9 +27,9 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'maven'
+          distribution: "temurin"
+          java-version: "17"
+          cache: "maven"
 
       - name: Build, test and package (mvn install)
         # compile → test → package all in one Maven lifecycle.
@@ -48,9 +47,7 @@ jobs:
           # Retain artifact for 7 days (default is 90)
           retention-days: 7
 
-  # ─────────────────────────────────────────────────────────────────────────
   # Security scan runs in parallel with CI — no need to wait for the build
-  # ─────────────────────────────────────────────────────────────────────────
   Security_Scan:
     name: Security Scan (Trivy)
     runs-on: ubuntu-latest
@@ -67,7 +64,7 @@ jobs:
           # exit-code:
           # 0 : continue if vulnerabilities are found
           # 1 : the workflow will be failed if vulnerabilities are found
-          exit-code: 0
+          exit-code: 1
           vuln-type: os,library
           output: trivy-results.json
           # trivy-config: trivy.yaml
@@ -78,11 +75,9 @@ jobs:
           name: trivy-scan-results
           path: trivy-results.json
 
-  # ─────────────────────────────────────────────────────────────────────────
   # Docker build jobs: download the pre-built WAR, then do a lightweight
   # Docker build (no Maven inside Docker). Uses the non-multistage Dockerfile
   # which simply COPYs target/*.war into the Tomcat image.
-  # ─────────────────────────────────────────────────────────────────────────
   BUILD_AMD64:
     name: Build AMD64
     runs-on: ubuntu-latest
@@ -160,7 +155,6 @@ jobs:
           file: Docker-files/app/Dockerfile
           platforms: linux/arm64
           outputs: type=image,name=ghcr.io/${{ github.repository }},push-by-digest=true,name-canonical=true,push=true
-
 
   PUBLISH_TO_GHCR:
     name: Publish to GHCR
