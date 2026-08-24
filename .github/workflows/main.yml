@@ -183,3 +183,5 @@ jobs:
             --tag $IMAGE_NAME:latest \
             $IMAGE_NAME@$AMD64_DIGEST \
             $IMAGE_NAME@$ARM64_DIGEST
+
+# Just a test
