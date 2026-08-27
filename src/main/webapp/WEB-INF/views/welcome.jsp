@@ -128,13 +128,13 @@
                             <p>DevOps For Product Management and Strategy of Application Delivery at HKH Infotech. Responsible of providing customers with counsel on their DevOps strategies to help them deliver higher quality software and services to market faster.</p>
                             <hr>
                             <h3><strong>Location</strong></h3>
-                            <p>Earth</p>
+                            <p>Asia</p>
                             <hr>
                             <h3><strong>Gender</strong></h3>
                             <p>Male</p>
                             <hr>
                             <h3><strong>Birthday</strong></h3>
-                            <p>January 01 1901</p>
+                            <p>January 01 1999</p>
                         </div>
                     </div>
                 </div>
