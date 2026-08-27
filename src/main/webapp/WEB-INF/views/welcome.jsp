@@ -131,7 +131,7 @@
                             <p>Earth</p>
                             <hr>
                             <h3><strong>Gender</strong></h3>
-                            <p>Unknown</p>
+                            <p>Male</p>
                             <hr>
                             <h3><strong>Birthday</strong></h3>
                             <p>January 01 1901</p>
