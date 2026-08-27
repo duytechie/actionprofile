@@ -24,8 +24,17 @@ services:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
 
+  watchtower:
+    image: nickfedor/watchtower:1.21.0
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 60 --label-enable --cleanup
+
   vproapp:
     image: ghcr.io/duytechie/actionprofile:latest
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
     container_name: vproapp
     ports:
       - "8080:8080"
