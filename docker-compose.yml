@@ -27,11 +27,9 @@ services:
   watchtower:
     image: nickfedor/watchtower:1.21.0
     restart: unless-stopped
-    environment:
-      REPO_USER: "${GHCR_USERNAME}"
-      REPO_PASS: "${GHCR_TOKEN}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /root/.docker/config.json:/config.json:ro
     command: --interval 60 --cleanup --debug vproapp
 
   vproapp:

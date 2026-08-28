@@ -24,6 +24,8 @@ Vagrant.configure("2") do |config|
 
     # The project is available through Vagrant's default synced folder.
     cd /vagrant
+    export $(grep -v '^#' .env | xargs)
+    echo $GHCR_TOKEN | docker login ghcr.io -u $GHCR_USERNAME --password-stdin
     docker compose up --build --detach
   SHELL
 end
