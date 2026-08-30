@@ -184,4 +184,3 @@ jobs:
             $IMAGE_NAME@$AMD64_DIGEST \
             $IMAGE_NAME@$ARM64_DIGEST
 
-# Just a test

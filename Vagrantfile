@@ -17,7 +17,7 @@ Vagrant.configure("2") do |config|
     export DEBIAN_FRONTEND=noninteractive
 
     apt-get update
-    apt-get install -y docker.io docker-compose-v2
+    apt-get install -y docker.io docker-compose-v2 ripgrep
 
     systemctl enable --now docker
     usermod -aG docker vagrant
