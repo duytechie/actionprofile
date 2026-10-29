@@ -104,7 +104,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_ACCESS_KEY }} # reconcied again
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push AMD64 image by digest
         id: build
@@ -143,7 +143,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_ACCESS_KEY }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push ARM64 image by digest
         id: build
@@ -170,7 +170,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_ACCESS_KEY }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create and push multi-arch manifest
         env:
