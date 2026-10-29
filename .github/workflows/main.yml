@@ -104,7 +104,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_ACCESS_KEY }} # reconcied
+          password: ${{ secrets.GHCR_ACCESS_KEY }} # reconcied again
 
       - name: Build and push AMD64 image by digest
         id: build
