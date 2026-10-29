@@ -1,5 +1,6 @@
 services:
   vprodb:
+    restart: unless-stopped
     build:
       context: ./Docker-files/db
     image: vprocontainers/vprofiledb
@@ -12,11 +13,13 @@ services:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
 
   vprocache01:
+    restart: unless-stopped
     image: memcached
     ports:
       - "11211:11211"
 
   vpromq01:
+    restart: unless-stopped
     image: rabbitmq
     ports:
       - "5672:5672"
@@ -33,6 +36,7 @@ services:
     command: --interval 60 --cleanup --debug vproapp
 
   vproapp:
+    restart: unless-stopped
     image: ghcr.io/duytechie/actionprofile:latest
     labels:
       com.centurylinklabs.watchtower.enable: "true"
@@ -45,6 +49,7 @@ services:
       - vpromq01
 
   vproweb:
+    restart: unless-stopped
     build:
       context: ./Docker-files/web
     image: vprocontainers/vprofileweb

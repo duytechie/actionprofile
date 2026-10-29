@@ -48,3 +48,16 @@ To rerun provisioning after a configuration change:
 vagrant provision
 ```
 
+All six services use `restart: unless-stopped`, so Docker starts them again
+after `vagrant halt` followed by `vagrant up`. Normal VM starts do not rerun
+provisioning. To apply Compose changes to an existing VM without provisioning:
+
+```sh
+vagrant ssh -c 'cd /vagrant && sudo docker compose --env-file .env up -d --wait --wait-timeout 300'
+```
+
+Containers explicitly stopped with `docker stop` or `docker compose stop` stay
+stopped across reboots; run the Compose command above to start them again.
+Containers removed with `docker compose down` also need that command (or
+`vagrant provision`) to be recreated.
+
