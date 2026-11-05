@@ -99,8 +99,10 @@ public class UserController {
         model.addAttribute("totalPages", users.getTotalPages());
         model.addAttribute("totalUsers", users.getTotalElements());
         model.addAttribute("pageSize", USERS_PAGE_SIZE);
-        model.addAttribute("firstUser", users.getContent().isEmpty() ? 0 : (long) (currentPage - 1) * USERS_PAGE_SIZE + 1);
-        model.addAttribute("lastUser", (long) (currentPage - 1) * USERS_PAGE_SIZE + users.getNumberOfElements());
+        long offset = (long) (currentPage - 1) * USERS_PAGE_SIZE;
+        boolean empty = users.getContent().isEmpty();
+        model.addAttribute("firstUser", empty ? 0L : offset + 1);
+        model.addAttribute("lastUser", empty ? 0L : offset + users.getNumberOfElements());
         return "userList";
     }
 
