@@ -107,6 +107,7 @@
     <div class="container">
         <div class="table-responsive">
             <h2 align="center">Users List</h2>
+            <p align="center">Showing <c:out value="${firstUser}"/>&ndash;<c:out value="${lastUser}"/> of <c:out value="${totalUsers}"/> users</p>
             <table class="table table-bordered">
                 <tr>
                     <th>User Name</th>
@@ -121,6 +122,15 @@
                 </tr>
                 </c:forEach>
             </table>
+            <ul class="pager">
+                <c:if test="${currentPage > 1}">
+                    <li class="previous"><a href="users?page=${currentPage > totalPages ? totalPages : currentPage - 1}">&larr; Previous</a></li>
+                </c:if>
+                <li>Page <c:out value="${currentPage}"/> of <c:out value="${totalPages}"/></li>
+                <c:if test="${currentPage < totalPages}">
+                    <li class="next"><a href="users?page=${currentPage + 1}">Next &rarr;</a></li>
+                </c:if>
+            </ul>
         </div>
     </div>
 </body>
