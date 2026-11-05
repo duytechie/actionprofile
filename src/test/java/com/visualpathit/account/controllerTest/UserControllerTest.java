@@ -179,7 +179,8 @@ public class UserControllerTest {
         .andExpect(status().isOk())
         .andExpect(model().attribute("currentPage", 99))
         .andExpect(model().attribute("totalPages", 50))
-        .andExpect(model().attribute("firstUser", 0L));
+        .andExpect(model().attribute("firstUser", 0L))
+        .andExpect(model().attribute("lastUser", 0L));
 	}
 
 }

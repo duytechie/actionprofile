@@ -107,7 +107,14 @@
     <div class="container">
         <div class="table-responsive">
             <h2 align="center">Users List</h2>
-            <p align="center">Showing <c:out value="${firstUser}"/>&ndash;<c:out value="${lastUser}"/> of <c:out value="${totalUsers}"/> users</p>
+            <c:choose>
+                <c:when test="${firstUser > 0}">
+                    <p align="center">Showing <c:out value="${firstUser}"/>&ndash;<c:out value="${lastUser}"/> of <c:out value="${totalUsers}"/> users</p>
+                </c:when>
+                <c:otherwise>
+                    <p align="center">No users on this page (<c:out value="${totalUsers}"/> users in total)</p>
+                </c:otherwise>
+            </c:choose>
             <table class="table table-bordered">
                 <tr>
                     <th>User Name</th>
