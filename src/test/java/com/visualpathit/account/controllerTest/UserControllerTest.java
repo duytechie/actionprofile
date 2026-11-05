@@ -7,12 +7,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -113,6 +121,65 @@ public class UserControllerTest {
         .andExpect(view().name("index_home"))
         .andExpect(forwardedUrl("index_home"));
 		
+	}
+
+	private static List<User> users(int count, long firstId) {
+		List<User> list = new ArrayList<>();
+		for (int i = 0; i < count; i++) {
+			User user = new User();
+			user.setId(firstId + i);
+			user.setUsername("user" + (firstId + i));
+			list.add(user);
+		}
+		return list;
+	}
+
+	@Test
+	public void usersListShowsFirstPageByDefault() throws Exception{
+		when(controllerSer.getPage(0, 100)).thenReturn(
+				new PageImpl<>(users(100, 1), PageRequest.of(0, 100), 5000));
+		mockMvc.perform(get("/users"))
+        .andExpect(status().isOk())
+        .andExpect(view().name("userList"))
+        .andExpect(model().attribute("currentPage", 1))
+        .andExpect(model().attribute("totalPages", 50))
+        .andExpect(model().attribute("totalUsers", 5000L))
+        .andExpect(model().attribute("firstUser", 1L))
+        .andExpect(model().attribute("lastUser", 100L));
+		verify(controllerSer).getPage(0, 100);
+	}
+
+	@Test
+	public void usersListShowsRequestedPage() throws Exception{
+		when(controllerSer.getPage(2, 100)).thenReturn(
+				new PageImpl<>(users(100, 201), PageRequest.of(2, 100), 5000));
+		mockMvc.perform(get("/users").param("page", "3"))
+        .andExpect(status().isOk())
+        .andExpect(model().attribute("currentPage", 3))
+        .andExpect(model().attribute("firstUser", 201L))
+        .andExpect(model().attribute("lastUser", 300L));
+	}
+
+	@Test
+	public void usersListClampsPageBelowOne() throws Exception{
+		when(controllerSer.getPage(0, 100)).thenReturn(
+				new PageImpl<>(users(10, 1), PageRequest.of(0, 100), 10));
+		mockMvc.perform(get("/users").param("page", "0"))
+        .andExpect(status().isOk())
+        .andExpect(model().attribute("currentPage", 1))
+        .andExpect(model().attribute("lastUser", 10L));
+		verify(controllerSer).getPage(0, 100);
+	}
+
+	@Test
+	public void usersListBeyondLastPageIsEmpty() throws Exception{
+		when(controllerSer.getPage(98, 100)).thenReturn(
+				new PageImpl<>(Collections.emptyList(), PageRequest.of(98, 100), 5000));
+		mockMvc.perform(get("/users").param("page", "99"))
+        .andExpect(status().isOk())
+        .andExpect(model().attribute("currentPage", 99))
+        .andExpect(model().attribute("totalPages", 50))
+        .andExpect(model().attribute("firstUser", 0L));
 	}
 
 }

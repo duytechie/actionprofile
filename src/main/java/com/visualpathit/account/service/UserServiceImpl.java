@@ -5,6 +5,9 @@ import com.visualpathit.account.repository.RoleRepository;
 import com.visualpathit.account.repository.UserRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -39,6 +42,10 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<User> getList() {
     	return userRepository.findAll();
+    }
+    @Override
+    public Page<User> getPage(final int page, final int size) {
+        return userRepository.findAll(PageRequest.of(page, size, Sort.by("id")));
     }
     @Override
 	public User findById(long id){

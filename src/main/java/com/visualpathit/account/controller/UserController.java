@@ -7,17 +7,20 @@ import com.visualpathit.account.service.UserService;
 import com.visualpathit.account.utils.MemcachedUtils;
 import com.visualpathit.account.validator.UserValidator;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
-import java.util.List;
 import java.util.UUID;
 
 @Controller
 public class UserController {
+
+    /** Users shown on one page of the /users list. */
+    static final int USERS_PAGE_SIZE = 100;
 
     @Autowired
     private UserService userService;
@@ -87,9 +90,17 @@ public class UserController {
     }
 
     @GetMapping("/users")
-    public String getAllUsers(Model model) {
-        List<User> users = userService.getList();
-        model.addAttribute("users", users);
+    public String getAllUsers(@RequestParam(value = "page", defaultValue = "1") int page, Model model) {
+        // Pages are 1-based in the URL and zero-based in Spring Data.
+        int currentPage = Math.max(page, 1);
+        Page<User> users = userService.getPage(currentPage - 1, USERS_PAGE_SIZE);
+        model.addAttribute("users", users.getContent());
+        model.addAttribute("currentPage", currentPage);
+        model.addAttribute("totalPages", users.getTotalPages());
+        model.addAttribute("totalUsers", users.getTotalElements());
+        model.addAttribute("pageSize", USERS_PAGE_SIZE);
+        model.addAttribute("firstUser", users.getContent().isEmpty() ? 0 : (long) (currentPage - 1) * USERS_PAGE_SIZE + 1);
+        model.addAttribute("lastUser", (long) (currentPage - 1) * USERS_PAGE_SIZE + users.getNumberOfElements());
         return "userList";
     }
 
