@@ -5,3 +5,13 @@ target/
 .logs/
 .vagrant/
 .secrets/
+
+# LaTeX build artifacts (ctu-report)
+ctu-report/*.aux
+ctu-report/*.log
+ctu-report/*.lof
+ctu-report/*.lot
+ctu-report/*.out
+ctu-report/*.toc
+ctu-report/*.synctex.gz
+ctu-report/*.pdf

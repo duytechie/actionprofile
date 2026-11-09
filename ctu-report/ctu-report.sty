@@ -1,0 +1,320 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{ctu-report}[2026/10/09 CTU report style distilled from the reference DOCX]
+
+% Compile with XeLaTeX or LuaLaTeX.
+\RequirePackage{iftex}
+\ifPDFTeX
+  \PackageError{ctu-report}{This template requires XeLaTeX or LuaLaTeX}{Select XeLaTeX or LuaLaTeX as the compiler.}
+\fi
+
+\RequirePackage{fontspec}
+\IfFontExistsTF{Times New Roman}
+  {\setmainfont{Times New Roman}}
+  {\setmainfont{TeX Gyre Termes}}
+\setsansfont{Arial}
+\setmonofont{Courier New}[Scale=MatchLowercase]
+
+\RequirePackage[a4paper,left=3.5cm,right=2cm,top=3cm,bottom=3cm,headheight=15pt,footskip=1.27cm]{geometry}
+\RequirePackage{setspace}
+\RequirePackage{indentfirst}
+\RequirePackage{titlesec}
+\RequirePackage{tocloft}
+\RequirePackage{caption}
+\RequirePackage{graphicx}
+\RequirePackage{array}
+\RequirePackage{longtable}
+\RequirePackage{booktabs}
+\RequirePackage{tabularx}
+\RequirePackage{enumitem}
+\RequirePackage{fancyhdr}
+\RequirePackage{tikz}
+\RequirePackage{xcolor}
+\RequirePackage{colortbl}
+\RequirePackage{listings}
+\RequirePackage{microtype}
+\RequirePackage{hyperref}
+
+\hypersetup{
+  unicode=true,
+  colorlinks=false,
+  pdfborder={0 0 0},
+  bookmarksnumbered=true,
+  bookmarksopen=true,
+  bookmarksopenlevel=1,
+  pdfpagemode=UseOutlines
+}
+
+% Page typography measured from the source document.
+\AtBeginDocument{\fontsize{13pt}{19.5pt}\selectfont}
+% The 19.5 pt baseline above already provides 1.5 times the 13 pt font size.
+\setstretch{1}
+\setlength{\parindent}{0.5cm}
+\setlength{\parskip}{0pt}
+\setlength{\emergencystretch}{2em}
+\raggedbottom
+
+% The source uses centered page numbers and no running header.
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancypagestyle{plain}{%
+  \fancyhf{}
+  \fancyfoot[C]{\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+
+% Chapter headings use Roman numerals; subordinate and float numbering stays Arabic.
+\renewcommand{\thechapter}{\Roman{chapter}}
+\renewcommand{\thesection}{\arabic{chapter}.\arabic{section}}
+\renewcommand{\thesubsection}{\thesection.\arabic{subsection}}
+\renewcommand{\thesubsubsection}{\thesubsection.\arabic{subsubsection}}
+\renewcommand{\thefigure}{\arabic{chapter}.\arabic{figure}}
+\renewcommand{\thetable}{\arabic{chapter}.\arabic{table}}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+
+\titleformat{\chapter}[block]
+  {\centering\bfseries\fontsize{16pt}{19pt}\selectfont}
+  {CHƯƠNG \thechapter:}{0.35em}{\MakeUppercase}
+% Unstarred spacing preserves the first-line indent after each heading.
+\titlespacing{\chapter}{0pt}{0pt}{18pt}
+
+\titleformat{\section}
+  {\bfseries\fontsize{13pt}{16pt}\selectfont}
+  {\thesection.}{0.45em}{}
+\titlespacing{\section}{0pt}{2pt}{0pt}
+
+\titleformat{\subsection}
+  {\bfseries\fontsize{13pt}{16pt}\selectfont}
+  {\thesubsection.}{0.45em}{}
+\titlespacing{\subsection}{0pt}{2pt}{0pt}
+
+\titleformat{\subsubsection}
+  {\itshape\fontsize{13pt}{16pt}\selectfont}
+  {\thesubsubsection.}{0.45em}{}
+\titlespacing{\subsubsection}{0pt}{0pt}{0pt}
+
+% Unnumbered front-matter headings.
+\newcommand{\ctuheading}[1]{%
+  \clearpage
+  \phantomsection
+  \addcontentsline{toc}{chapter}{#1}%
+  \begin{center}
+    \bfseries\fontsize{16pt}{19pt}\selectfont #1
+  \end{center}
+  \vspace{12pt}
+  % Restore normal paragraph indentation after the centered heading.
+  \@afterindenttrue\@afterheading
+}
+
+% Introduction headings are numbered 1, 2, ... independently of chapters.
+\newcounter{introsection}
+\newcounter{introsubsection}[introsection]
+\newcommand{\introsection}[1]{%
+  \refstepcounter{introsection}%
+  \par\vspace{2pt}\noindent
+  {\bfseries\fontsize{13pt}{16pt}\selectfont \theintrosection. #1}\par
+  \addcontentsline{toc}{section}{\protect\numberline{\theintrosection.}#1}%
+}
+\newcommand{\introsubsection}[1]{%
+  \refstepcounter{introsubsection}%
+  \par\noindent
+  {\bfseries\fontsize{13pt}{16pt}\selectfont \theintrosection.\theintrosubsection. #1}\par
+  \addcontentsline{toc}{subsection}{\protect\numberline{\theintrosection.\theintrosubsection.}#1}%
+}
+
+% Vietnamese names and captions.
+\renewcommand{\contentsname}{MỤC LỤC}
+\renewcommand{\listfigurename}{DANH MỤC HÌNH}
+\renewcommand{\listtablename}{DANH MỤC BẢNG}
+\renewcommand{\figurename}{Hình}
+\renewcommand{\tablename}{Bảng}
+\renewcommand{\bibname}{TÀI LIỆU THAM KHẢO}
+\captionsetup{
+  font=it,
+  labelfont=it,
+  justification=centering,
+  singlelinecheck=true,
+  parindent=0pt,
+  skip=4pt
+}
+
+% Contents and lists: bold centered 16 pt title, dotted leaders, compact entries.
+\renewcommand{\cfttoctitlefont}{\hfill\bfseries\fontsize{16pt}{19pt}\selectfont}
+\renewcommand{\cftaftertoctitle}{\hfill\null\par\vspace{8pt}}
+\renewcommand{\cftloftitlefont}{\hfill\bfseries\fontsize{16pt}{19pt}\selectfont}
+\renewcommand{\cftafterloftitle}{\hfill\null\par\vspace{8pt}}
+\renewcommand{\cftlottitlefont}{\hfill\bfseries\fontsize{16pt}{19pt}\selectfont}
+\renewcommand{\cftafterlottitle}{\hfill\null\par\vspace{8pt}}
+\renewcommand{\cftchapfont}{\normalfont}
+\renewcommand{\cftchappagefont}{\normalfont}
+\renewcommand{\cftchapleader}{\cftdotfill{\cftdotsep}}
+\renewcommand{\cftchappresnum}{CHƯƠNG~}
+\renewcommand{\cftchapaftersnum}{:~}
+\setlength{\cftchapnumwidth}{2.8cm}
+\setlength{\cftbeforechapskip}{0pt}
+\setlength{\cftbeforesecskip}{0pt}
+\setlength{\cftbeforesubsecskip}{0pt}
+\setlength{\cftbeforefigskip}{0pt}
+\setlength{\cftbeforetabskip}{0pt}
+
+\newcommand{\ctutableofcontents}{%
+  \clearpage\phantomsection
+  \addcontentsline{toc}{chapter}{MỤC LỤC}
+  \tableofcontents
+}
+\newcommand{\ctulistoffigures}{%
+  \clearpage\phantomsection
+  \addcontentsline{toc}{chapter}{DANH MỤC HÌNH}
+  \listoffigures
+}
+\newcommand{\ctulistoftables}{%
+  \clearpage\phantomsection
+  \addcontentsline{toc}{chapter}{DANH MỤC BẢNG}
+  \listoftables
+}
+
+% List geometry follows the hanging-indent treatment in the source.
+\setlist[itemize]{label=\textbullet,leftmargin=1.25cm,labelsep=0.45cm,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt}
+\setlist[enumerate]{leftmargin=1.25cm,labelsep=0.45cm,itemsep=0pt,topsep=0pt,parsep=0pt,partopsep=0pt}
+
+% Table helpers: thin black grid and a light gray header.
+\definecolor{ctuTableHeader}{RGB}{221,221,221}
+\newcommand{\ctuTableHead}[1]{\cellcolor{ctuTableHeader}\bfseries #1}
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{6pt}
+
+% Optional native code listings. The source usually presents code as figures.
+\lstdefinestyle{ctucode}{
+  basicstyle=\ttfamily\small,
+  frame=single,
+  rulecolor=\color{black!35},
+  backgroundcolor=\color{black!3},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false,
+  numbers=left,
+  numberstyle=\scriptsize\color{black!60},
+  xleftmargin=1.2em,
+  framexleftmargin=1em
+}
+\lstset{style=ctucode}
+
+% Metadata edited by the author.
+\newcommand{\ctuuniversity}{BỘ GIÁO DỤC VÀ ĐÀO TẠO\\ĐẠI HỌC CẦN THƠ}
+\newcommand{\ctuschool}{TRƯỜNG CÔNG NGHỆ THÔNG TIN \& TRUYỀN THÔNG}
+\newcommand{\ctudepartment}{KHOA CÔNG NGHỆ THÔNG TIN}
+\newcommand{\ctureporttype}{TIỂU LUẬN}
+\newcommand{\ctumajor}{NGÀNH CÔNG NGHỆ THÔNG TIN}
+\newcommand{\ctutitle}{TÊN ĐỀ TÀI}
+\newcommand{\ctustudent}{HỌ VÀ TÊN SINH VIÊN}
+\newcommand{\ctustudentid}{MÃ SỐ SINH VIÊN}
+\newcommand{\ctucohort}{NIÊN KHÓA}
+\newcommand{\ctusupervisor}{HỌ VÀ TÊN GIẢNG VIÊN}
+\newcommand{\ctulogo}{assets/ctu-logo.png}
+\newcommand{\ctucity}{Cần Thơ}
+\newcommand{\ctumonthyear}{MM/YYYY}
+
+\newcommand{\CTUUniversity}[1]{\renewcommand{\ctuuniversity}{#1}}
+\newcommand{\CTUSchool}[1]{\renewcommand{\ctuschool}{#1}}
+\newcommand{\CTUDepartment}[1]{\renewcommand{\ctudepartment}{#1}}
+\newcommand{\CTUReportType}[1]{\renewcommand{\ctureporttype}{#1}}
+\newcommand{\CTUMajor}[1]{\renewcommand{\ctumajor}{#1}}
+\newcommand{\CTUTitle}[1]{\renewcommand{\ctutitle}{#1}}
+\newcommand{\CTUStudent}[1]{\renewcommand{\ctustudent}{#1}}
+\newcommand{\CTUStudentID}[1]{\renewcommand{\ctustudentid}{#1}}
+\newcommand{\CTUCohort}[1]{\renewcommand{\ctucohort}{#1}}
+\newcommand{\CTUSupervisor}[1]{\renewcommand{\ctusupervisor}{#1}}
+\newcommand{\CTULogo}[1]{\renewcommand{\ctulogo}{#1}}
+\newcommand{\CTUCity}[1]{\renewcommand{\ctucity}{#1}}
+\newcommand{\CTUMonthYear}[1]{\renewcommand{\ctumonthyear}{#1}}
+
+\newcommand{\ctucoverframe}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \draw[line width=1.4pt]
+      ([xshift=0.9cm,yshift=-0.9cm]current page.north west)
+      rectangle
+      ([xshift=-0.9cm,yshift=0.9cm]current page.south east);
+    \draw[line width=0.45pt]
+      ([xshift=1.05cm,yshift=-1.05cm]current page.north west)
+      rectangle
+      ([xshift=-1.05cm,yshift=1.05cm]current page.south east);
+  \end{tikzpicture}%
+}
+
+\newcommand{\ctumakecover}{%
+  \begin{titlepage}
+    \thispagestyle{empty}
+    \ctucoverframe
+    \centering
+    {\bfseries\fontsize{14pt}{18pt}\selectfont \ctuuniversity\par}
+    \vspace{4pt}
+    {\bfseries\fontsize{14pt}{18pt}\selectfont \ctuschool\par}
+    \vspace{8pt}
+    \includegraphics[width=3.6cm]{\ctulogo}\par
+    \vspace{4pt}
+    {\bfseries\fontsize{16pt}{20pt}\selectfont \ctureporttype\par}
+    \vspace{2pt}
+    {\bfseries\fontsize{16pt}{20pt}\selectfont \ctumajor\par}
+    \vfill
+    {\bfseries\fontsize{16pt}{20pt}\selectfont Đề tài\par}
+    \vspace{22pt}
+    {\bfseries\fontsize{20pt}{25pt}\selectfont \ctutitle\par}
+    \vfill
+    {\bfseries\fontsize{14pt}{18pt}\selectfont
+      Sinh viên: \ctustudent\\
+      Mã số: \ctustudentid\\
+      Khóa: \ctucohort\par}
+    \vfill
+    {\bfseries\itshape\fontsize{14pt}{18pt}\selectfont \ctucity, \ctumonthyear\par}
+    \vspace{5pt}
+  \end{titlepage}
+}
+
+\newcommand{\ctumakeinnertitle}{%
+  \begin{titlepage}
+    \thispagestyle{empty}
+    \centering
+    {\bfseries\fontsize{14pt}{18pt}\selectfont \ctuuniversity\par}
+    \vspace{4pt}
+    {\bfseries\fontsize{14pt}{18pt}\selectfont \ctudepartment\par}
+    \vspace{8pt}
+    \includegraphics[width=3.6cm]{\ctulogo}\par
+    \vspace{4pt}
+    {\bfseries\fontsize{16pt}{20pt}\selectfont \ctureporttype\par}
+    \vspace{2pt}
+    {\bfseries\fontsize{16pt}{20pt}\selectfont \ctumajor\par}
+    \vfill
+    {\bfseries\fontsize{16pt}{20pt}\selectfont Đề tài\par}
+    \vspace{22pt}
+    {\bfseries\fontsize{20pt}{25pt}\selectfont \ctutitle\par}
+    \vfill
+    \begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}p{0.44\textwidth}p{0.44\textwidth}@{}}
+      \centering\bfseries\fontsize{14pt}{18pt}\selectfont Người hướng dẫn
+      & \centering\arraybackslash\bfseries\fontsize{14pt}{18pt}\selectfont Sinh viên thực hiện\\[5pt]
+      \centering\bfseries\fontsize{14pt}{18pt}\selectfont \ctusupervisor
+      & \centering\arraybackslash\bfseries\fontsize{14pt}{18pt}\selectfont \ctustudent\\
+      & \centering\arraybackslash\bfseries\fontsize{14pt}{18pt}\selectfont Mã số: \ctustudentid\\
+      & \centering\arraybackslash\bfseries\fontsize{14pt}{18pt}\selectfont Khóa: \ctucohort
+    \end{tabular*}
+    \vfill
+    {\bfseries\itshape\fontsize{14pt}{18pt}\selectfont \ctucity, \ctumonthyear\par}
+    \vspace{5pt}
+  \end{titlepage}
+}
+
+\newcommand{\ctufrontmatter}{%
+  \clearpage
+  \pagenumbering{roman}
+  \setcounter{page}{1}
+}
+\newcommand{\ctumainmatter}{%
+  \clearpage
+  \pagenumbering{arabic}
+  \setcounter{page}{1}
+}
+
