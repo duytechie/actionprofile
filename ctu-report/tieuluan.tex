@@ -4,7 +4,7 @@
 \usepackage{amssymb}
 \usepackage{placeins}
 \usepackage{needspace}
-\usetikzlibrary{positioning}
+\usetikzlibrary{positioning,decorations.pathreplacing,shapes.geometric}
 \setlength{\emergencystretch}{3em}
 \renewcommand{\lstlistingname}{Đoạn mã}
 \AtBeginDocument{\renewcommand{\thelstlisting}{\arabic{chapter}.\arabic{lstlisting}}}
@@ -1318,6 +1318,10 @@ nhận các chỉ số E3.
 % -----------------------------------------------------------------------------
 \chapter{PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG}
 \label{chap:design}
+Chương này bắt đầu bằng việc mô tả lại hệ thống đã xây dựng trong niên luận,
+sau đó phân tích các hạn chế và rủi ro của hệ thống theo mô hình STRIDE. Từ kết
+quả phân tích, chương xác định các yêu cầu chức năng và phi chức năng, rồi trình
+bày thiết kế của pipeline DevSecOps và cơ chế triển khai Blue-Green.
 \section{Hiện trạng hệ thống từ niên luận}
 \subsection{Phân tích kiến trúc hệ thống ứng dụng Web mẫu}
 Ứng dụng web mẫu trong đề tài (VProfile) được viết bằng ngôn ngữ lập trình Java
@@ -1359,47 +1363,426 @@ và được thiết kế theo mô hình đa tầng (Multi-tier) bao gồm các 
 \end{enumerate}
 
 \section{Phân tích hạn chế và rủi ro}
-\subsection{Hạn chế của pipeline hiện tại}
-\ctutodo{Liệt kê có dẫn chứng: Trivy \texttt{exit-code: 0}; Checkstyle không
-chặn; \texttt{Tests run: 0}; không có SAST, SBOM, chữ ký; Watchtower dùng tag
-\texttt{latest}, dừng rồi mới chạy container mới, không health check, không
-rollback.}
+\label{sec:limitations}
+\subsection{Hạn chế của hệ thống hiện tại}
+Việc rà soát mã nguồn, tệp workflow \texttt{.github/workflows/main.yml}, tệp
+\texttt{docker-compose.yml} và kết quả kiểm thử của niên luận cho thấy các hạn
+chế được tổng hợp trong Bảng~\ref{tab:current-limitations}.
+
+\begin{table}[!htbp]
+  \centering
+  \fontsize{11pt}{13.42pt}\selectfont
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabularx}{\textwidth}{|>{\centering\arraybackslash}p{0.06\textwidth}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+    \hline
+    \ctuTableHead{Mã} & \ctuTableHead{Hạn chế} & \ctuTableHead{Dẫn chứng} \\
+    \hline
+    \multicolumn{3}{|l|}{\textbf{Nhóm A -- Kiểm soát chất lượng và bảo mật}} \\
+    \hline
+    A1 & Kiểm thử tự động không có thực chất & Maven báo \texttt{Tests run: 0} (Hình~\ref{fig:mvn-test}) \\
+    \hline
+    A2 & Quét lỗ hổng không chặn pipeline & Trivy cấu hình \texttt{exit-code: 0}, chỉ xuất tệp JSON \\
+    \hline
+    A3 & Quét lỗ hổng chưa bao phủ image & Trivy chỉ quét hệ thống tệp, không quét image Tomcat \\
+    \hline
+    A4 & Kiểm tra coding convention không chặn & \texttt{mvn checkstyle:checkstyle} chỉ sinh báo cáo \\
+    \hline
+    A5 & Chưa có phân tích mã tĩnh, quét secret & Workflow không có bước SAST hay Gitleaks \\
+    \hline
+    A6 & Thông tin đăng nhập nằm trong mã nguồn & \texttt{application.properties} chứa mật khẩu MySQL, tài khoản RabbitMQ mặc định và tài khoản quản trị \\
+    \hline
+    A7 & Dùng thư viện phiên bản thử nghiệm & \texttt{hibernate.version} là \texttt{7.0.0.Alpha3} \\
+    \hline
+    A8 & Action bên thứ ba được tham chiếu bằng tag & Ví dụ \texttt{aquasecurity/}\allowbreak\texttt{trivy-action@v0.36.0}; tag có thể bị trỏ sang mã khác \\
+    \hline
+    \multicolumn{3}{|l|}{\textbf{Nhóm B -- Toàn vẹn artifact}} \\
+    \hline
+    B1 & Không có SBOM & Không biết chính xác image chứa thành phần nào \\
+    \hline
+    B2 & Image không được ký & Máy chủ không thể xác minh nguồn gốc image \\
+    \hline
+    B3 & Triển khai theo tag \texttt{latest} & Không truy vết được phiên bản đang chạy \\
+    \hline
+    \multicolumn{3}{|l|}{\textbf{Nhóm C -- Triển khai và vận hành}} \\
+    \hline
+    C1 & Gián đoạn dịch vụ khi cập nhật & Watchtower dừng container cũ trước khi container mới sẵn sàng \\
+    \hline
+    C2 & Không kiểm tra tình trạng, không quay lui & Container lỗi vẫn được giữ lại sau cập nhật \\
+    \hline
+    C3 & Mở cổng không cần thiết & MySQL (3306), RabbitMQ (5672), Memcached (11211) và ứng dụng (8080) được công khai ra máy chủ \\
+    \hline
+    C4 & Đặc quyền rộng của công cụ cập nhật & Watchtower gắn \texttt{/var/run/docker.sock}, tương đương quyền root trên máy chủ \\
+    \hline
+  \end{tabularx}
+  \caption{Các hạn chế của hệ thống hiện tại}
+  \label{tab:current-limitations}
+\end{table}
+\FloatBarrier
+
+Hạn chế A8 không phải là rủi ro lý thuyết: tháng 3/2025, action phổ biến
+\texttt{tj-actions/changed-files} bị xâm nhập và các tag phiên bản bị trỏ sang
+một commit độc hại làm lộ secret trong log của các workflow sử dụng
+nó~\cite{cve-tj-actions}. Biện pháp được khuyến nghị là tham chiếu action bằng
+mã băm đầy đủ của commit thay vì tag.
 
 \subsection{Mô hình hóa mối đe dọa theo STRIDE}
-\ctutodo{Vẽ sơ đồ luồng dữ liệu (lập trình viên $\rightarrow$ GitHub $\rightarrow$
-runner $\rightarrow$ GHCR $\rightarrow$ máy chủ). Lập bảng: thành phần, mối đe
-dọa STRIDE, ví dụ, biện pháp giảm thiểu trong thiết kế mới.}
+Để phân tích rủi ro một cách có hệ thống, đề tài áp dụng mô hình STRIDE, phân
+loại mối đe dọa thành sáu nhóm: giả mạo danh tính (Spoofing), sửa đổi trái phép
+(Tampering), chối bỏ (Repudiation), lộ thông tin (Information disclosure), từ chối
+dịch vụ (Denial of service) và leo thang đặc quyền (Elevation of privilege).
+Hình~\ref{fig:dfd} mô tả sơ đồ luồng dữ liệu của quy trình, với các ranh giới tin
+cậy (trust boundary) được biểu diễn bằng đường nét đứt.
 
+\begin{figure}[!htbp]
+  \centering
+  \begin{tikzpicture}[
+      box/.style={draw, rounded corners, align=center, minimum height=10mm,
+        text width=25mm, font=\small},
+      lbl/.style={font=\footnotesize, align=center},
+      >=stealth]
+    \node[box] (dev) at (0,0) {Lập trình viên};
+    \node[box] (gh) at (4.3,0) {Kho mã GitHub};
+    \node[box] (run) at (8.6,0) {Runner GitHub (build, quét, ký)};
+    \node[box] (ghcr) at (8.6,-3) {GHCR};
+    \node[box] (srv) at (4.3,-3) {Máy chủ (self-hosted runner, Docker)};
+    \node[box] (user) at (0,-3) {Người dùng cuối};
+    \draw[->, thick] (dev) -- node[lbl, above, pos=0.35] {push, PR} (gh);
+    \draw[->, thick] (gh) -- node[lbl, above] {kích hoạt} (run);
+    \draw[->, thick] (run) -- node[lbl, right] {image, chữ ký} (ghcr);
+    \draw[->, thick] (ghcr) -- node[lbl, above, pos=0.35] {pull} (srv);
+    \draw[->, thick] (gh) -- node[lbl, right, pos=0.3] {job deploy} (srv);
+    \draw[->, thick] (user) -- node[lbl, above] {HTTP} (srv);
+    \draw[dashed, red!60!black, thick, rounded corners] (2.4,1.1) rectangle (10.4,-1.4);
+    \node[font=\footnotesize, text=red!60!black, anchor=south east] at (10.4,1.1) {Hạ tầng GitHub};
+    \draw[dashed, red!60!black, thick, rounded corners] (2.4,-1.9) rectangle (6.2,-4.2);
+    \node[font=\footnotesize, text=red!60!black, anchor=north west] at (2.4,-4.2) {Máy ảo Ubuntu};
+  \end{tikzpicture}
+  \caption{Sơ đồ luồng dữ liệu và ranh giới tin cậy của quy trình}
+  \label{fig:dfd}
+\end{figure}
+\FloatBarrier
+
+Bảng~\ref{tab:stride} liệt kê các mối đe dọa chính, ánh xạ với hạn chế ở
+Bảng~\ref{tab:current-limitations} và biện pháp giảm thiểu trong thiết kế mới.
+
+\begin{table}[!htbp]
+  \centering
+  \fontsize{11pt}{13.42pt}\selectfont
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabularx}{\textwidth}{|>{\centering\arraybackslash}p{0.05\textwidth}|>{\raggedright\arraybackslash}p{0.17\textwidth}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+    \hline
+    \ctuTableHead{} & \ctuTableHead{Thành phần} & \ctuTableHead{Mối đe dọa} & \ctuTableHead{Biện pháp} \\
+    \hline
+    S & GHCR $\rightarrow$ máy chủ & Image giả mạo được đẩy lên registry với tag hợp lệ (B2, B3) & Ký keyless, \texttt{cosign verify} với danh tính workflow; triển khai theo digest \\
+    \hline
+    T & Thư viện phụ thuộc & Thư viện có lỗ hổng hoặc mã độc lọt vào image (A2, A3, A7) & SCA, quét image, cổng chặn mức High/Critical \\
+    \hline
+    T & Workflow & Action bên thứ ba bị thay đổi (A8) & Ghim action theo mã băm commit \\
+    \hline
+    T & Kho mã & Pull request chứa mã độc chạy trên self-hosted runner & Job deploy chỉ chạy khi \texttt{push} lên \texttt{main}, dùng GitHub Environment có phê duyệt \\
+    \hline
+    R & Máy chủ & Không xác định được ai/commit nào gây ra một lần triển khai (B3) & Tag theo commit SHA, log triển khai, bản ghi Rekor \\
+    \hline
+    I & Mã nguồn & Lộ mật khẩu, token trong kho mã công khai (A6) & Gitleaks; chuyển thông tin đăng nhập sang biến môi trường \\
+    \hline
+    I & Máy chủ & Truy cập trực tiếp cơ sở dữ liệu, hàng đợi qua cổng mở (C3) & Chỉ công khai cổng 80 của Nginx \\
+    \hline
+    D & Máy chủ & Phiên bản lỗi làm dịch vụ ngừng hoạt động (C1, C2) & Blue-Green, health check, tự động quay lui \\
+    \hline
+    E & Workflow & Token có quyền rộng hơn cần thiết bị lạm dụng & Phân quyền \texttt{permissions} tối thiểu cho từng job \\
+    \hline
+    E & Máy chủ & Tiến trình có quyền Docker bị chiếm quyền (C4) & Bỏ Watchtower khỏi cấu hình mới; runner chạy bằng tài khoản riêng, chỉ nhận job deploy \\
+    \hline
+  \end{tabularx}
+  \caption{Phân tích mối đe dọa theo STRIDE}
+  \label{tab:stride}
+\end{table}
+\FloatBarrier
+
+Một số rủi ro được chấp nhận và nằm ngoài phạm vi: tài khoản GitHub của lập
+trình viên bị chiếm quyền (giảm thiểu bằng xác thực hai lớp, không thuộc
+pipeline), và việc tài khoản chạy runner thuộc nhóm \texttt{docker} vẫn tương
+đương quyền root trên máy ảo; rủi ro này được ghi nhận và giới hạn bằng cách
+chỉ cho runner nhận job triển khai từ nhánh \texttt{main}.
+
+% -----------------------------------------------------------------------------
 \section{Yêu cầu của hệ thống mới}
+\label{sec:requirements}
 \subsection{Yêu cầu chức năng}
-\ctutodo{Ví dụ: FR1 pipeline thất bại khi có lỗ hổng HIGH/CRITICAL; FR2 mỗi image
-có SBOM và chữ ký; FR3 máy chủ từ chối image chưa ký; FR4 triển khai không gián
-đoạn; FR5 tự động rollback khi health check thất bại.}
+\begin{table}[!htbp]
+  \centering
+  \fontsize{11pt}{13.42pt}\selectfont
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabularx}{\textwidth}{|>{\centering\arraybackslash}p{0.08\textwidth}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}p{0.17\textwidth}|}
+    \hline
+    \ctuTableHead{Mã} & \ctuTableHead{Yêu cầu} & \ctuTableHead{Giải quyết} \\
+    \hline
+    FR1 & Pipeline thất bại khi kiểm thử đơn vị thất bại hoặc vi phạm coding convention & A1, A4 \\
+    \hline
+    FR2 & Pipeline thất bại khi SAST phát hiện cảnh báo mức cao, khi SCA phát hiện thư viện có CVSS $\geq 7.0$, hoặc khi phát hiện secret & A2, A5, A6 \\
+    \hline
+    FR3 & Pipeline thất bại khi container image có lỗ hổng mức High/Critical đã có bản vá, trừ các ngoại lệ được khai báo & A3 \\
+    \hline
+    FR4 & Mỗi image được xuất bản có tag theo commit SHA, kèm SBOM và chữ ký số & B1, B2, B3 \\
+    \hline
+    FR5 & Máy chủ chỉ triển khai image có chữ ký hợp lệ từ đúng workflow của dự án trên nhánh \texttt{main} & B2 \\
+    \hline
+    FR6 & Triển khai phiên bản mới không làm gián đoạn dịch vụ & C1 \\
+    \hline
+    FR7 & Phiên bản mới không nhận lưu lượng nếu chưa đạt health check; tự động quay lui nếu lỗi trong cửa sổ quan sát & C2 \\
+    \hline
+    FR8 & Chỉ cổng HTTP của Nginx được công khai trên máy chủ & C3 \\
+    \hline
+  \end{tabularx}
+  \caption{Yêu cầu chức năng}
+  \label{tab:fr}
+\end{table}
+\FloatBarrier
+
 \subsection{Yêu cầu phi chức năng}
-\ctutodo{Ví dụ: thời gian pipeline tăng không quá X\%; thời gian rollback dưới Y
-giây; mọi phiên bản truy vết được qua commit SHA.}
+Các yêu cầu phi chức năng dưới đây đồng thời là các giả thuyết được kiểm chứng
+trong Chương~\ref{chap:evaluation}:
+\begin{itemize}
+  \item \textbf{NFR1 -- Chi phí thời gian:} thời gian từ khi kích hoạt đến khi
+  image được xuất bản của pipeline mới không vượt quá 2 lần so với pipeline cũ
+  (kiểm chứng bằng E2).
+  \item \textbf{NFR2 -- Tính sẵn sàng:} trong một lần triển khai thành công, số
+  yêu cầu HTTP thất bại bằng 0 (E3).
+  \item \textbf{NFR3 -- Khả năng phục hồi:} khi phiên bản mới bị lỗi, dịch vụ
+  vẫn được phục vụ bởi phiên bản cũ; thời gian để lưu lượng trở về phiên bản cũ
+  sau khi phát hiện lỗi không quá 5 giây (E4).
+  \item \textbf{NFR4 -- Truy vết:} từ một container đang chạy có thể xác định
+  được commit, lần chạy workflow và SBOM tương ứng.
+  \item \textbf{NFR5 -- Tái lập:} toàn bộ môi trường có thể dựng lại bằng
+  \texttt{vagrant up} và các tệp cấu hình trong kho mã.
+\end{itemize}
+\ctutodo{Hiệu chỉnh ngưỡng NFR1 và NFR3 sau khi đo thời gian chạy thực tế của
+pipeline cũ và thời gian khởi động Tomcat.}
 
+% -----------------------------------------------------------------------------
 \section{Thiết kế pipeline DevSecOps}
-\ctutodo{Sơ đồ pipeline mới (TikZ hoặc hình): Build \& Unit test (JaCoCo)
-$\parallel$ SAST $\parallel$ SCA $\parallel$ Secret scan $\rightarrow$ Gate 1
-$\rightarrow$ Build image amd64/arm64 $\rightarrow$ Trivy image scan
-$\rightarrow$ Gate 2 $\rightarrow$ Push theo digest, SBOM, ký Cosign
-$\rightarrow$ Gate 3 $\rightarrow$ Deploy. Bảng: gate, công cụ, điều kiện chặn,
-ngoại lệ.}
+\label{sec:pipeline-design}
+\subsection{Tổng quan}
+Pipeline mới giữ nguyên các nguyên tắc đã chứng minh hiệu quả trong niên luận
+(build một lần, build đa kiến trúc song song trên runner gốc, đẩy image theo
+digest rồi ghép manifest) và bổ sung ba cổng kiểm soát cùng một job triển khai
+(Hình~\ref{fig:pipeline-new}).
 
+\begin{figure}[!htbp]
+  \centering
+  \begin{tikzpicture}[
+      job/.style={draw, rounded corners, align=center, minimum height=10mm,
+        text width=27mm, font=\small},
+      gate/.style={draw=red!60!black, thick, fill=red!6, rounded corners,
+        align=center, minimum height=8mm, text width=110mm, font=\small\bfseries},
+      >=stealth]
+    \node[job] (ci) at (-4.8,0) {Build, test, JaCoCo, Checkstyle};
+    \node[job] (sast) at (-1.6,0) {SAST};
+    \node[job] (sca) at (1.6,0) {SCA (Dependency-Check)};
+    \node[job] (sec) at (4.8,0) {Quét secret (Gitleaks)};
+    \node[gate] (g1) at (0,-1.7) {Gate 1: mã nguồn và thư viện};
+    \node[job, text width=45mm] (amd) at (-3,-3.4) {Build image amd64, đẩy theo digest, quét Trivy};
+    \node[job, text width=45mm] (arm) at (3,-3.4) {Build image arm64, đẩy theo digest, quét Trivy};
+    \node[gate] (g2) at (0,-5.1) {Gate 2: container image};
+    \node[job, text width=110mm] (pub) at (0,-6.6) {Ghép manifest đa kiến trúc, tag theo commit SHA, sinh SBOM, ký và attest bằng Cosign};
+    \node[gate] (g3) at (0,-8.1) {Gate 3: xác minh chữ ký (trên máy chủ)};
+    \node[job, text width=110mm] (dep) at (0,-9.6) {Triển khai Blue-Green (self-hosted runner)};
+    \foreach \n in {ci, sast, sca, sec} \draw[->, thick] (\n) -- (\n |- g1.north);
+    \draw[->, thick] (g1.south -| amd) -- (amd);
+    \draw[->, thick] (g1.south -| arm) -- (arm);
+    \draw[->, thick] (amd) -- (amd |- g2.north);
+    \draw[->, thick] (arm) -- (arm |- g2.north);
+    \draw[->, thick] (g2) -- (pub);
+    \draw[->, thick] (pub) -- (g3);
+    \draw[->, thick] (g3) -- (dep);
+    \draw[decorate, decoration={brace, amplitude=5pt, mirror}, thick]
+      (-6.4,0.6) -- node[left=6pt, font=\footnotesize, align=right] {Mọi push\\ và PR} (-6.4,-1.7);
+    \draw[decorate, decoration={brace, amplitude=5pt, mirror}, thick]
+      (-6.4,-2.6) -- node[left=6pt, font=\footnotesize, align=right] {Chỉ push\\ lên main} (-6.4,-10.1);
+  \end{tikzpicture}
+  \caption{Thiết kế pipeline DevSecOps với ba cổng kiểm soát}
+  \label{fig:pipeline-new}
+\end{figure}
+\FloatBarrier
+
+Các job ở tầng đầu chạy song song để không kéo dài thời gian chờ, giống cách job
+\texttt{Security\_Scan} chạy song song với \texttt{CI} trong niên luận. Khi có pull
+request, chỉ tầng đầu (Gate~1) được chạy, nhằm phản hồi nhanh cho người đóng góp
+mà không xuất bản image hay chạm vào máy chủ. Các bước còn lại chỉ chạy khi có
+\texttt{push} lên nhánh \texttt{main}.
+
+\subsection{Đặc tả các cổng kiểm soát}
+Bảng~\ref{tab:gates} đặc tả điều kiện chặn và cơ chế ngoại lệ của từng cổng,
+theo các nguyên tắc ở Mục~\ref{sec:devsecops}.
+
+\begin{table}[!htbp]
+  \centering
+  \fontsize{11pt}{13.42pt}\selectfont
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{0.10\textwidth}|>{\raggedright\arraybackslash}p{0.20\textwidth}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}p{0.22\textwidth}|}
+    \hline
+    \ctuTableHead{Cổng} & \ctuTableHead{Công cụ} & \ctuTableHead{Điều kiện chặn} & \ctuTableHead{Ngoại lệ} \\
+    \hline
+    Gate 1 & JUnit, JaCoCo & Có test thất bại & Không \\
+    \cline{2-4}
+     & Checkstyle & Có vi phạm mức error & Cấu hình luật trong kho mã \\
+    \cline{2-4}
+     & SAST & Có cảnh báo mức High trở lên & Đánh dấu false positive kèm lý do \\
+    \cline{2-4}
+     & Dependency-Check & Thư viện có CVSS $\geq 7.0$ & Tệp suppression kèm lý do, hạn xem xét \\
+    \cline{2-4}
+     & Gitleaks & Bất kỳ phát hiện nào & Tệp cấu hình allowlist \\
+    \hline
+    Gate 2 & Trivy (image) & Lỗ hổng High/Critical đã có bản vá & \texttt{.trivyignore} kèm lý do \\
+    \hline
+    Gate 3 & \texttt{cosign verify} & Không có chữ ký, hoặc danh tính người ký khác workflow \texttt{main.yml} trên \texttt{refs/heads/main} & Không \\
+    \hline
+  \end{tabularx}
+  \caption{Đặc tả các cổng kiểm soát}
+  \label{tab:gates}
+\end{table}
+\FloatBarrier
+
+Ngưỡng độ phủ mã (JaCoCo) chỉ được báo cáo, không dùng để chặn, vì ứng dụng mẫu
+ban đầu không có kiểm thử; một ngưỡng chặn có thể được bổ sung khi bộ kiểm thử
+đã ổn định.
+
+\subsection{Nguyên tắc cấu hình workflow an toàn}
+\begin{itemize}
+  \item \textbf{Quyền tối thiểu:} mức workflow chỉ cấp \texttt{contents: read};
+  quyền \texttt{packages: write} chỉ cấp cho các job đẩy image; quyền
+  \texttt{id-token: write} (cần cho ký keyless) chỉ cấp cho job ký.
+  \item \textbf{Ghim action:} mọi action bên thứ ba được tham chiếu bằng mã băm
+  commit đầy đủ, kèm chú thích phiên bản để dễ cập nhật.
+  \item \textbf{Định danh bất biến:} các job sau truyền cho nhau digest của image,
+  không truyền tag; tag theo commit SHA chỉ dùng để con người dễ đọc.
+  \item \textbf{Lưu vết:} báo cáo của mọi công cụ quét và SBOM được lưu thành
+  artifact của lần chạy workflow.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
 \section{Thiết kế cơ chế triển khai Blue-Green}
+\label{sec:bluegreen-design}
 \subsection{Kiến trúc triển khai}
-\ctutodo{Sơ đồ: Nginx $\rightarrow$ vproapp-blue / vproapp-green; dịch vụ dùng
-chung (MySQL, Memcached, RabbitMQ). Thay \texttt{container\_name} cố định bằng
-hai service; upstream Nginx sinh từ template.}
+Cấu hình Docker Compose được thay đổi như sau so với niên luận:
+\begin{itemize}
+  \item Dịch vụ \texttt{vproapp} được tách thành hai dịch vụ \texttt{vproapp-blue}
+  và \texttt{vproapp-green}, cùng cấu hình nhưng image được chỉ định bằng hai
+  biến môi trường riêng, nhận giá trị là tham chiếu theo digest. Thuộc tính
+  \texttt{container\_name} cố định được bỏ để hai dịch vụ cùng tồn tại.
+  \item Cấu hình upstream của Nginx được tách ra một tệp riêng trên máy chủ,
+  gắn vào container \texttt{vproweb}; tệp này chỉ chứa một dòng trỏ đến màu
+  đang hoạt động, ví dụ \texttt{server vproapp-blue:8080;}.
+  \item Mỗi dịch vụ ứng dụng có khai báo \texttt{healthcheck} gửi yêu cầu HTTP
+  đến trang đăng nhập.
+  \item Chỉ \texttt{vproweb} công khai cổng 80; các cổng của MySQL, RabbitMQ,
+  Memcached và cổng 8080 của ứng dụng chỉ dùng trong mạng nội bộ của Compose.
+  \item Dịch vụ Watchtower bị loại khỏi cấu hình mới; cấu hình cũ được giữ lại
+  trong một tệp Compose riêng để chạy thực nghiệm đối chứng.
+  \item Một tệp trạng thái trên máy chủ ghi lại màu đang hoạt động và digest
+  tương ứng.
+\end{itemize}
+
+\ctutodo{Xác định đường dẫn health check cụ thể (trang đăng nhập phải trả về
+HTTP 200 mà không cần xác thực) và công cụ thực hiện yêu cầu HTTP có sẵn trong
+image Tomcat. Lưu ý trang đăng nhập không kiểm tra kết nối cơ sở dữ liệu; cân
+nhắc bổ sung một endpoint kiểm tra riêng.}
+
 \subsection{Luồng triển khai và quay lui}
-\ctutodo{Sơ đồ trạng thái / lưu đồ của \texttt{deploy.sh}: xác minh chữ ký
-$\rightarrow$ khởi động màu rảnh $\rightarrow$ chờ health check $\rightarrow$
-chuyển upstream (\texttt{nginx -s reload}) $\rightarrow$ theo dõi N giây
-$\rightarrow$ giữ hoặc rollback.}
+Kịch bản \texttt{deploy.sh} nhận đầu vào là digest của image cần triển khai và
+thực hiện theo lưu đồ ở Hình~\ref{fig:deploy-flow}.
+
+\begin{figure}[!htbp]
+  \centering
+  \begin{tikzpicture}[
+      stp/.style={draw, rounded corners, align=center, minimum height=9mm,
+        text width=55mm, font=\small},
+      dec/.style={draw, diamond, aspect=2.4, align=center, inner sep=1pt,
+        font=\footnotesize, text width=24mm},
+      bad/.style={draw=red!60!black, fill=red!6, rounded corners, align=center,
+        minimum height=9mm, text width=38mm, font=\small},
+      good/.style={draw=green!40!black, fill=green!8, rounded corners,
+        align=center, minimum height=9mm, text width=55mm, font=\small},
+      lbl/.style={font=\footnotesize},
+      >=stealth, node distance=5mm]
+    \node[stp] (in) {Nhận digest image mới};
+    \node[dec, below=of in] (v) {Chữ ký hợp lệ?};
+    \node[stp, below=of v] (start) {Khởi động màu rảnh với image mới};
+    \node[dec, below=of start] (h) {Healthy trong thời hạn?};
+    \node[stp, below=of h] (sw) {Chuyển upstream sang màu mới, nạp lại Nginx};
+    \node[dec, below=of sw] (o) {Ổn định trong cửa sổ quan sát?};
+    \node[good, below=of o] (ok) {Ghi trạng thái, dừng màu cũ: thành công};
+    \node[bad, right=18mm of v] (rej) {Từ chối: không triển khai};
+    \node[bad, right=18mm of h] (abort) {Hủy: dừng màu mới, lưu lượng giữ nguyên};
+    \node[bad, right=18mm of o] (rb) {Quay lui: chuyển upstream về màu cũ, dừng màu mới};
+    \draw[->, thick] (in) -- (v);
+    \draw[->, thick] (v) -- node[lbl, right] {có} (start);
+    \draw[->, thick] (start) -- (h);
+    \draw[->, thick] (h) -- node[lbl, right] {có} (sw);
+    \draw[->, thick] (sw) -- (o);
+    \draw[->, thick] (o) -- node[lbl, right] {có} (ok);
+    \draw[->, thick] (v) -- node[lbl, above] {không} (rej);
+    \draw[->, thick] (h) -- node[lbl, above] {không} (abort);
+    \draw[->, thick] (o) -- node[lbl, above] {không} (rb);
+  \end{tikzpicture}
+  \caption{Lưu đồ của kịch bản triển khai Blue-Green}
+  \label{fig:deploy-flow}
+\end{figure}
+\FloatBarrier
+
+Các tham số của kịch bản được đặt giá trị mặc định ban đầu như sau và sẽ được
+hiệu chỉnh khi cài đặt:
+\begin{itemize}
+  \item \textbf{Thời hạn chờ healthy:} 180 giây, đủ cho Tomcat triển khai tệp WAR
+  và kết nối các dịch vụ phụ thuộc.
+  \item \textbf{Cửa sổ quan sát:} 60 giây, kiểm tra mỗi 5 giây; quay lui nếu có 3
+  lần kiểm tra thất bại liên tiếp.
+\end{itemize}
+
+Ngoài ra, thiết kế bảo đảm ba tính chất:
+\begin{itemize}
+  \item \textbf{Không bao giờ để lưu lượng trỏ vào màu chưa sẵn sàng:} upstream
+  chỉ được thay đổi sau khi màu mới đạt healthy, và trước khi nạp lại, cấu hình
+  được kiểm tra bằng \texttt{nginx -t}; nếu cấu hình lỗi, tệp upstream được khôi
+  phục.
+  \item \textbf{Không có hai lần triển khai đồng thời:} kịch bản giữ một khóa tệp
+  trong suốt quá trình chạy, đồng thời job triển khai trên GitHub Actions dùng
+  nhóm \texttt{concurrency} để các lần chạy được xếp hàng.
+  \item \textbf{Lũy đẳng:} nếu digest yêu cầu trùng với digest đang hoạt động,
+  kịch bản kết thúc mà không thay đổi gì.
+\end{itemize}
+
 \subsection{Cơ chế kích hoạt triển khai}
-\ctutodo{Lý do chọn self-hosted runner trên máy ảo (không mở SSH ra Internet, mô
-hình pull giống Watchtower nên so sánh công bằng); phân quyền của runner.}
+Máy ảo chạy sau NAT của máy tính cá nhân nên GitHub không thể kết nối trực tiếp
+vào. Ba phương án được cân nhắc:
+\begin{itemize}
+  \item \textbf{Kết nối SSH từ runner của GitHub:} cần mở cổng SSH ra Internet
+  và lưu khóa SSH thành secret --- tăng bề mặt tấn công.
+  \item \textbf{Tác tử tự viết chạy định kỳ:} tương tự Watchtower, nhưng phải tự
+  xử lý việc theo dõi phiên bản mới và báo cáo kết quả.
+  \item \textbf{Self-hosted runner của GitHub Actions trên máy ảo:} runner chủ
+  động kết nối ra ngoài qua HTTPS để nhận job, không cần mở cổng vào. Kết quả
+  triển khai hiển thị ngay trong lần chạy workflow, và digest được truyền trực
+  tiếp từ job xuất bản.
+\end{itemize}
+Đề tài chọn phương án self-hosted runner. Vì đây là cơ chế kéo (pull) tương tự
+Watchtower, việc so sánh hai phương án trong thực nghiệm là công bằng về mặt
+mạng.
+
+Do kho mã ở chế độ công khai, GitHub khuyến cáo thận trọng với self-hosted
+runner vì mã từ pull request có thể được thực thi trên máy của
+runner~\cite{gha-hardening}. Thiết kế giảm thiểu rủi ro này bằng các biện pháp:
+\begin{itemize}
+  \item Job triển khai chỉ chạy khi sự kiện là \texttt{push} lên nhánh
+  \texttt{main}; mọi job khác chạy trên runner của GitHub.
+  \item Runner được gắn nhãn riêng và job triển khai được gắn với một GitHub
+  Environment có quy tắc bảo vệ (chỉ nhánh \texttt{main}, có thể yêu cầu phê
+  duyệt).
+  \item Bật thiết lập yêu cầu phê duyệt trước khi chạy workflow từ pull request
+  của người đóng góp bên ngoài.
+  \item Runner chạy bằng một tài khoản hệ thống riêng, chỉ có quyền cần thiết để
+  điều khiển Docker và đọc thư mục triển khai.
+\end{itemize}
 
 % -----------------------------------------------------------------------------
 % CHƯƠNG IV
@@ -2032,6 +2415,14 @@ SLSA cấp cao hơn.}
   \bibitem{docker-healthcheck}
   Docker, ``Dockerfile reference -- HEALTHCHECK'',
   \url{https://docs.docker.com/reference/dockerfile/\#healthcheck}.
+
+  \bibitem{cve-tj-actions}
+  NIST National Vulnerability Database, ``CVE-2025-30066'' (tj-actions/changed-files),
+  \url{https://nvd.nist.gov/vuln/detail/CVE-2025-30066}.
+
+  \bibitem{gha-hardening}
+  GitHub Docs, ``Security hardening for GitHub Actions'',
+  \url{https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions}.
 
   \bibitem{eo14028}
   The White House, ``Executive Order 14028: Improving the Nation's
