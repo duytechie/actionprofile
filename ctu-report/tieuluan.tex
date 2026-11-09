@@ -1,0 +1,1620 @@
+\documentclass[12pt,a4paper,oneside]{extreport}
+\usepackage{ctu-report}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{placeins}
+\usepackage{needspace}
+\usetikzlibrary{positioning}
+\setlength{\emergencystretch}{3em}
+\renewcommand{\lstlistingname}{Đoạn mã}
+\AtBeginDocument{\renewcommand{\thelstlisting}{\arabic{chapter}.\arabic{lstlisting}}}
+\graphicspath{{assets/figures/}}
+\Urlmuskip=0mu plus 1mu
+\def\UrlBreaks{\do\/\do-\do.\do_}
+
+% Figure helper: \ctufigure{file}{width as a fraction of \textwidth}{caption}{label}
+% Height is capped so tall screenshots still fit on a page with their caption.
+\newcommand{\ctufigure}[4]{%
+  \begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=#2\textwidth,height=0.62\textheight,keepaspectratio]{#1}
+    \caption{#3}
+    \label{#4}
+  \end{figure}
+  \FloatBarrier
+}
+
+% Caption for the unnumbered tables in the front matter and introduction.
+\newcommand{\ctuplaintablecaption}[1]{%
+  \begin{center}
+    \itshape Bảng: #1
+  \end{center}
+  \addcontentsline{lot}{table}{Bảng: #1}%
+}
+
+% Khung tiểu luận: hộp TODO đánh dấu phần cần viết. Xóa macro này khi hoàn thiện.
+\newcommand{\ctutodo}[1]{%
+  \par\smallskip\noindent
+  \fcolorbox{red!60!black}{red!5}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{%
+    \small\color{red!60!black}\textbf{TODO:} #1}}%
+  \par\smallskip
+}
+
+% -----------------------------------------------------------------------------
+% METADATA
+% -----------------------------------------------------------------------------
+\CTUReportType{TIỂU LUẬN}
+\CTUTitle{Xây dựng quy trình DevSecOps an toàn với cơ chế triển khai không gián đoạn cho ứng dụng Web Java}
+\CTUStudent{Trần Thanh Duy}
+\CTUStudentID{DC24V7X604}
+\CTUCohort{2024--2027}
+\CTUSupervisor{ThS. Nguyễn Minh Trung} % TODO: xác nhận GVHD tiểu luận
+\CTUMonthYear{MM/YYYY} % TODO: tháng/năm nộp
+
+\begin{document}
+
+\ctumakecover
+\ctumakeinnertitle
+
+% -----------------------------------------------------------------------------
+% FRONT MATTER
+% -----------------------------------------------------------------------------
+\ctufrontmatter
+
+\ctuheading{LỜI CẢM ƠN}
+Em xin gửi lời cảm ơn chân thành đến các thầy cô tại Đại học Cần Thơ, đặc biệt
+là các thầy cô trong trường Công Nghệ Thông Tin và Truyền Thông. Trong thời
+gian qua các thầy cô đã tận tình giảng dạy, hướng dẫn nhiệt tình để em có được
+những kiến thức mới đầy hữu ích cho tương lai sau này.
+
+Em xin cảm ơn Thầy Nguyễn Minh Trung đã hỗ trợ hướng dẫn em hoàn thành tiểu
+luận ``Xây dựng quy trình DevSecOps an toàn với cơ chế triển khai không gián
+đoạn cho ứng dụng Web Java''.
+
+Do trình độ lý luận và kinh nghiệm thực tế còn hạn chế nên bài báo cáo còn
+nhiều thiếu sót, em rất mong nhận được ý kiến đóng góp từ Thầy, Cô để em có thể
+rút ra nhiều kinh nghiệm hơn.
+
+Cuối cùng, em xin chân thành cảm ơn gia đình và bạn bè, đã luôn tạo điều kiện,
+quan tâm, giúp đỡ, động viên em trong suốt quá trình học tập và hoàn thành bài
+tiểu luận này.
+
+\begin{flushright}
+  Em xin chân thành cảm ơn
+\end{flushright}
+
+\ctutableofcontents
+\ctulistoffigures
+\ctulistoftables
+
+\ctuheading{DANH MỤC TỪ VIẾT TẮT}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{0.24\textwidth}|>{\raggedright\arraybackslash}p{0.68\textwidth}|}
+  \hline
+  \ctuTableHead{Kí hiệu \& Chữ viết tắt} & \ctuTableHead{Diễn giải} \\
+  \hline
+  \endhead
+  API & Application Programming Interface (Giao diện lập trình ứng dụng) \\
+  \hline
+  CD & Continuous Delivery / Continuous Deployment (Phân phối liên tục / Triển khai liên tục) \\
+  \hline
+  CI & Continuous Integration (Tích hợp liên tục) \\
+  \hline
+  CVE & Common Vulnerabilities and Exposures (Danh mục lỗ hổng bảo mật công khai) \\
+  \hline
+  CVSS & Common Vulnerability Scoring System (Hệ thống chấm điểm mức độ nghiêm trọng lỗ hổng) \\
+  \hline
+  DevSecOps & Development, Security and Operations (Tích hợp bảo mật vào DevOps) \\
+  \hline
+  DORA & DevOps Research and Assessment (Bộ chỉ số đo hiệu quả phân phối phần mềm) \\
+  \hline
+  GHCR & GitHub Container Registry (Kho lưu trữ Container của GitHub) \\
+  \hline
+  JDK & Java Development Kit (Bộ công cụ phát triển phần mềm Java) \\
+  \hline
+  MTTR & Mean Time To Recovery (Thời gian khôi phục trung bình) \\
+  \hline
+  OCI & Open Container Initiative (Tiêu chuẩn mở cho định dạng container) \\
+  \hline
+  OWASP & Open Worldwide Application Security Project \\
+  \hline
+  SAST & Static Application Security Testing (Kiểm thử bảo mật tĩnh) \\
+  \hline
+  SBOM & Software Bill of Materials (Danh mục thành phần phần mềm) \\
+  \hline
+  SCA & Software Composition Analysis (Phân tích thành phần phần mềm) \\
+  \hline
+  SLSA & Supply-chain Levels for Software Artifacts \\
+  \hline
+  SSDF & Secure Software Development Framework (NIST SP 800-218) \\
+  \hline
+  STRIDE & Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege \\
+  \hline
+  vCPU & Virtual Central Processing Unit (Nhân CPU ảo) \\
+  \hline
+  YAML & YAML Ain't Markup Language (Ngôn ngữ cấu hình dữ liệu) \\
+  \hline
+\end{longtable}
+\ctuplaintablecaption{Danh mục từ viết tắt}
+
+% -----------------------------------------------------------------------------
+% MAIN MATTER
+% -----------------------------------------------------------------------------
+\ctumainmatter
+
+\ctuheading{TÓM TẮT}
+\ctutodo{Viết sau cùng (khoảng 250--300 từ), theo cấu trúc: bối cảnh (CI/CD phổ
+biến nhưng thường bỏ qua bảo mật chuỗi cung ứng và tính sẵn sàng khi triển
+khai) $\rightarrow$ vấn đề (pipeline niên luận: cổng bảo mật không chặn, Watchtower
+gây gián đoạn và không rollback) $\rightarrow$ giải pháp (các cổng SAST/SCA/quét
+image/ký số + Blue-Green có health check và tự rollback) $\rightarrow$ phương pháp
+đánh giá (4 thực nghiệm E1--E4) $\rightarrow$ kết quả chính bằng số liệu.}
+
+\textbf{Từ khóa:} DevSecOps, CI/CD, bảo mật chuỗi cung ứng phần mềm, SBOM, ký
+số container image, Blue-Green Deployment, GitHub Actions.
+
+\ctuheading{GIỚI THIỆU}
+\introsection{Đặt vấn đề}
+Trong bối cảnh ngành công nghiệp phần mềm hiện đại, phương pháp phát triển phần
+mềm Agile đang trở thành tiêu chuẩn cốt lõi tại các công ty công nghệ lớn nhằm
+đáp ứng nhu cầu thay đổi nhanh chóng của thị trường. Thông qua việc chia nhỏ quá
+trình phát triển thành các chu kỳ ngắn (Sprints), đội ngũ lập trình
+(Developer/Dev) có thể liên tục chuyển giao các tính năng phần mềm mới một cách
+nhanh chóng.
+
+Tuy nhiên, tốc độ lập trình và tần suất chuyển giao gia tăng này tạo ra một nút
+thắt lớn ở giai đoạn triển khai (Deployment). Nó đặt áp lực nặng nề lên đội ngũ
+vận hành (Operations/Ops). Ngoài việc phải đáp ứng khối lượng lớn các yêu cầu
+cập nhật liên tục từ đội Dev, team Ops còn phải chịu trách nhiệm đảm bảo thời
+gian hoạt động (uptime), tính sẵn sàng và sự ổn định của hệ thống máy chủ tổng
+thể.
+
+Sự mâu thuẫn giữa tốc độ phát triển và sự ổn định trong vận hành bộc lộ rõ qua
+những điểm yếu của quy trình làm việc thủ công truyền thống:
+\begin{itemize}
+  \item \textbf{Ở giai đoạn Phát Triển (Development):} Thông thường, các nhóm
+  phát triển làm việc độc lập trong nhiều tuần với khối lượng mã nguồn (source
+  code) đồ sộ. Khi toàn bộ mã nguồn này được gộp chung và đưa lên máy chủ để
+  biên dịch (build) cùng một lúc, hệ thống thường xuyên phát sinh hàng loạt lỗi
+  phần mềm và xung đột cấu hình. Việc phát hiện lỗi quá muộn ở giai đoạn cuối
+  khiến các kỹ sư mất rất nhiều thời gian để rà soát và khắc phục sự cố.
+  \item \textbf{Ở giai đoạn Triển khai (Deployment):} Việc đưa ứng dụng lên môi
+  trường thực tế (Production) là một chuỗi các công việc phức tạp, bao gồm cung
+  cấp máy chủ, cấu hình các thư viện phụ thuộc (dependencies), thay đổi thiết
+  lập mạng và triển khai các gói phần mềm đóng gói (artifact như định dạng
+  jar/war, zip/tar). Khi nhóm Ops liên tục nhận các yêu cầu triển khai thủ công
+  nhưng lại thiếu đi tài liệu hướng dẫn cấu hình rõ ràng, rủi ro về sai sót của
+  con người là rất lớn, dẫn đến nguy cơ gián đoạn dịch vụ và giảm trải nghiệm
+  người dùng.
+\end{itemize}
+
+Để giải quyết triệt để sự mâu thuẫn này, văn hóa DevOps ra đời nhằm phá bỏ rào
+cản truyền thống, giúp đội ngũ Development và Operations làm việc gắn kết chặt
+chẽ với nhau. Trọng tâm của DevOps là áp dụng các công cụ tự động hóa
+(Automation Tools) nhằm giảm thiểu thao tác thủ công và loại bỏ sai sót từ con
+người. Cốt lõi của mô hình này là quy trình Tích hợp liên tục và Phân
+phối/triển khai liên tục (CI/CD):
+\begin{itemize}
+  \item Tích hợp liên tục (Continuous Integration -- CI): Yêu cầu mọi thay đổi
+  (commit/push) mã nguồn của lập trình viên phải đi kèm với quá trình xây dựng
+  và kiểm thử tự động ngay lập tức. Việc này giúp phát hiện và cô lập lỗi (sự
+  cố nền, xung đột) ngay từ giai đoạn đầu để chúng không nhân lên diện rộng. Sau
+  khi vượt qua kiểm định, mã nguồn được đóng gói thành phần mềm hoàn chỉnh
+  (artifact). CI hoạt động như một hệ thống kiểm tra tự động. Mỗi khi code được
+  thay đổi và commit lên hệ thống, các bài kiểm tra tự động sẽ được chạy để
+  kiểm tra xem code có hoạt động đúng và không gây lỗi hay không.
+  \item Phân phối liên tục (Continuous Delivery): là quá trình tiếp nối CI,
+  trong đó mọi phiên bản phần mềm đã vượt qua các bước build, kiểm thử và đánh
+  giá bảo mật sẽ được tự động đóng gói, lưu trữ tại kho artifact hoặc container
+  registry, đồng thời sẵn sàng để triển khai lên các môi trường như Testing,
+  Staging hoặc Production. Với Continuous Delivery, việc triển khai lên
+  Production có thể cần sự phê duyệt thủ công của người quản trị.
+  \item Triển khai liên tục (Continuous Deployment): là mức độ tự động hóa cao
+  hơn của Continuous Delivery. Sau khi mã nguồn vượt qua toàn bộ các bước kiểm
+  định trong pipeline, phiên bản mới sẽ được tự động triển khai lên môi trường
+  chạy thực tế mà không cần thao tác thủ công. Để bảo đảm an toàn, quy trình
+  này cần kết hợp cơ chế kiểm tra tình trạng hoạt động của ứng dụng (health
+  check), theo dõi nhật ký hệ thống, kiểm soát phiên bản image và khả năng quay
+  lui về phiên bản ổn định trước đó khi xảy ra sự cố.
+\end{itemize}
+
+
+Trong niên luận trước, tác giả đã xây dựng một quy trình CI/CD cho ứng dụng Web
+Java với GitHub Actions, GitHub Container Registry và Watchtower. Tuy nhiên, quá
+trình vận hành và đánh giá cho thấy hai nhóm hạn chế:
+\begin{itemize}
+  \item \textbf{Về bảo mật:} các bước kiểm tra chỉ sinh báo cáo mà không chặn
+  pipeline (Trivy cấu hình \texttt{exit-code: 0}, Checkstyle không làm build
+  thất bại), chưa có phân tích mã tĩnh, chưa có SBOM và image không được ký nên
+  máy chủ không thể xác minh nguồn gốc image trước khi chạy.
+  \item \textbf{Về triển khai:} Watchtower dừng container cũ rồi mới khởi động
+  container mới nên ứng dụng bị gián đoạn trong mỗi lần cập nhật; Watchtower
+  không kiểm tra tình trạng ứng dụng sau khi khởi động và không có cơ chế quay
+  lui khi phiên bản mới bị lỗi; việc theo dõi tag \texttt{latest} khiến khó
+  truy vết phiên bản đang chạy.
+\end{itemize}
+
+\ctutodo{Bổ sung 1--2 đoạn dẫn chứng bối cảnh: các sự cố chuỗi cung ứng phần
+mềm tiêu biểu (SolarWinds 2020, Log4Shell 2021, xz-utils 2024) và số liệu từ
+báo cáo DORA về ảnh hưởng của tỉ lệ triển khai lỗi; trích dẫn nguồn.}
+
+Xuất phát từ các hạn chế trên, tiểu luận ``Xây dựng quy trình DevSecOps an toàn
+với cơ chế triển khai không gián đoạn cho ứng dụng Web Java'' được thực hiện
+nhằm nâng cấp pipeline của niên luận theo hai hướng: tích hợp các cổng kiểm soát
+bảo mật xuyên suốt pipeline và thay thế cơ chế cập nhật container bằng chiến
+lược Blue-Green có kiểm tra sức khỏe và tự động quay lui.
+
+\introsection{Mục tiêu đề tài}
+\introsubsection{Mục tiêu tổng quát}
+Xây dựng và đánh giá thực nghiệm một quy trình DevSecOps cho ứng dụng Web Java,
+trong đó mọi phiên bản phải vượt qua các cổng kiểm soát bảo mật, được ký số và
+xác minh trước khi triển khai, và được đưa vào vận hành mà không gây gián đoạn
+dịch vụ.
+
+\introsubsection{Câu hỏi nghiên cứu}
+\begin{itemize}
+  \item \textbf{RQ1:} Việc bổ sung các cổng kiểm soát bảo mật (SAST, SCA, quét
+  secret, quét container image, ký số và xác minh image) ngăn chặn được bao
+  nhiêu loại lỗ hổng trước khi chúng đến môi trường vận hành, và làm tăng thời
+  gian thực thi pipeline bao nhiêu?
+  \item \textbf{RQ2:} So với cơ chế cập nhật của Watchtower, chiến lược
+  Blue-Green kết hợp health check và tự động rollback cải thiện thời gian gián
+  đoạn dịch vụ và khả năng khôi phục (MTTR) đến mức nào?
+\end{itemize}
+
+\introsubsection{Đóng góp của đề tài}
+\begin{itemize}
+  \item Phân tích rủi ro pipeline CI/CD hiện tại theo mô hình STRIDE và ánh xạ
+  với các khuyến nghị của NIST SSDF, SLSA và OWASP Top 10 CI/CD Security Risks.
+  \item Thiết kế và cài đặt pipeline DevSecOps với ba lớp cổng kiểm soát, sinh
+  SBOM và ký số image bằng Cosign.
+  \item Thiết kế và cài đặt cơ chế triển khai Blue-Green trên một máy chủ đơn
+  với Docker Compose và Nginx, có kiểm tra sức khỏe và tự động quay lui.
+  \item Bộ thực nghiệm có thể lặp lại (E1--E4) cùng số liệu so sánh giữa
+  pipeline cũ và pipeline mới.
+\end{itemize}
+
+\introsection{Đối tượng và phạm vi nghiên cứu}
+\introsubsection{Đối tượng nghiên cứu}
+Quy trình DevSecOps và bảo mật chuỗi cung ứng phần mềm trong CI/CD; các chiến
+lược triển khai ứng dụng (Recreate, Rolling, Blue-Green, Canary); các công cụ
+GitHub Actions, Docker, GHCR, Trivy, OWASP Dependency-Check, CodeQL, Gitleaks,
+Syft, Cosign, Nginx và k6.
+
+\introsubsection{Phạm vi nghiên cứu}
+\begin{itemize}
+  \item Ứng dụng mẫu VProfile (Java Spring MVC) được giữ nguyên nghiệp vụ; đề
+  tài chỉ bổ sung kiểm thử tự động cần thiết cho pipeline.
+  \item Môi trường triển khai là một máy ảo Ubuntu 24.04 tạo bằng Vagrant, chạy
+  Docker Compose. Đề tài không sử dụng Kubernetes và không triển khai lên hạ
+  tầng đám mây.
+  \item Cơ sở dữ liệu dùng chung giữa hai môi trường Blue và Green; đề tài không
+  giải quyết bài toán migration lược đồ cơ sở dữ liệu không tương thích ngược.
+\end{itemize}
+
+\introsection{Phương pháp nghiên cứu}
+\begin{itemize}
+  \item \textbf{Nghiên cứu tài liệu:} tổng hợp các nghiên cứu và tiêu chuẩn về
+  DevSecOps, bảo mật chuỗi cung ứng và chiến lược triển khai.
+  \item \textbf{Thiết kế -- cài đặt:} mở rộng pipeline của niên luận theo thiết
+  kế ở Chương~\ref{chap:design}.
+  \item \textbf{Thực nghiệm so sánh:} chạy pipeline cũ (baseline) và pipeline mới
+  trên cùng điều kiện, lặp lại nhiều lần và báo cáo giá trị trung bình, độ lệch
+  chuẩn.
+\end{itemize}
+
+\introsection{Công nghệ sử dụng}
+\begin{center}
+  \begin{tabular}{|>{\raggedright\arraybackslash}p{0.40\textwidth}|>{\raggedright\arraybackslash}p{0.50\textwidth}|}
+    \hline
+    \ctuTableHead{Nhóm công nghệ} & \ctuTableHead{Công nghệ} \\
+    \hline
+    Quản lý mã nguồn, CI/CD & Git, GitHub, GitHub Actions \\
+    \hline
+    Build, kiểm thử, độ phủ & Maven, JUnit, JaCoCo, Checkstyle \\
+    \hline
+    Phân tích mã tĩnh (SAST) & CodeQL / SpotBugs + FindSecBugs \\
+    \hline
+    Phân tích thư viện (SCA) & OWASP Dependency-Check \\
+    \hline
+    Quét secret & Gitleaks \\
+    \hline
+    Quét container image & Trivy \\
+    \hline
+    SBOM, ký số & Syft, Cosign (Sigstore) \\
+    \hline
+    Container, registry & Docker, Docker Compose, GHCR \\
+    \hline
+    Triển khai & Nginx (Blue-Green), GitHub Actions self-hosted runner, Watchtower (baseline) \\
+    \hline
+    Môi trường & Ubuntu 24.04 trên Vagrant (VMware/VirtualBox) \\
+    \hline
+    Đo lường & k6 \\
+    \hline
+  \end{tabular}
+\end{center}
+\ctuplaintablecaption{Các công nghệ được sử dụng}
+\ctutodo{Chốt lựa chọn CodeQL hay SpotBugs + FindSecBugs sau khi thử trên mã
+nguồn VProfile, cập nhật lại bảng.}
+
+\introsection{Bố cục của tiểu luận}
+Tiểu luận được chia làm 5 chương:
+\begin{itemize}
+  \item Chương I: Tổng quan và các nghiên cứu liên quan
+  \item Chương II: Cơ sở lý thuyết
+  \item Chương III: Phân tích và thiết kế hệ thống
+  \item Chương IV: Cài đặt hệ thống
+  \item Chương V: Thực nghiệm và đánh giá
+\end{itemize}
+Phần Kết luận tổng hợp câu trả lời cho các câu hỏi nghiên cứu, nêu hạn chế và
+hướng phát triển.
+
+% -----------------------------------------------------------------------------
+% CHƯƠNG I
+% -----------------------------------------------------------------------------
+\chapter{TỔNG QUAN VÀ CÁC NGHIÊN CỨU LIÊN QUAN}
+\label{chap:related}
+Chương này trình bày bối cảnh của đề tài thông qua ba nhóm tài liệu: các sự cố
+và nghiên cứu về bảo mật chuỗi cung ứng phần mềm, các nghiên cứu về DevSecOps,
+và các nghiên cứu về chiến lược triển khai phần mềm. Tiếp theo, chương giới
+thiệu các tiêu chuẩn được dùng làm khung tham chiếu cho thiết kế ở
+Chương~\ref{chap:design}. Cuối chương là phần so sánh các công trình liên quan
+và xác định khoảng trống mà tiểu luận hướng tới.
+
+% -----------------------------------------------------------------------------
+\section{Bảo mật chuỗi cung ứng phần mềm}
+\label{sec:supply-chain}
+\subsection{Khái niệm}
+Chuỗi cung ứng phần mềm (software supply chain) là tập hợp toàn bộ các thành
+phần, con người, quy trình và hạ tầng tham gia vào việc tạo ra và phân phối một
+sản phẩm phần mềm: mã nguồn do nhóm phát triển viết, các thư viện mã nguồn mở
+của bên thứ ba, công cụ và máy chủ build, kho lưu trữ artifact hoặc container
+registry, cho đến hạ tầng triển khai và vận hành.
+
+Ứng dụng VProfile trong đề tài là một ví dụ điển hình: phần mã nghiệp vụ do nhóm
+phát triển viết chỉ chiếm một phần nhỏ, phần lớn mã thực thi đến từ các thư viện
+như Spring Framework, Spring Security, Hibernate, các trình kết nối MySQL,
+RabbitMQ, Memcached và từ image nền Tomcat. Mỗi thành phần này lại có các phụ
+thuộc bắc cầu (transitive dependencies) của riêng nó. Do đó, kẻ tấn công không
+nhất thiết phải khai thác trực tiếp mã nguồn của ứng dụng mà có thể xâm nhập ở
+bất kỳ mắt xích nào trong chuỗi (Hình~\ref{fig:supply-chain}).
+
+\begin{figure}[!htbp]
+  \centering
+  \begin{tikzpicture}[
+      node distance=4mm,
+      link/.style={draw, rounded corners, align=center, minimum height=12mm,
+        text width=22mm, font=\small},
+      inc/.style={align=center, text width=22mm, font=\footnotesize\itshape,
+        text=red!60!black},
+      >=stealth]
+    \node[link] (src) {Mã nguồn};
+    \node[link, right=of src] (dep) {Thư viện phụ thuộc};
+    \node[link, right=of dep] (build) {Hệ thống build};
+    \node[link, right=of build] (art) {Artifact / Registry};
+    \node[link, right=of art] (dep2) {Triển khai};
+    \foreach \a/\b in {src/dep, dep/build, build/art, art/dep2}
+      \draw[->, thick] (\a) -- (\b);
+    \node[inc, below=3mm of src] {Lộ secret, mã độc do người đóng góp};
+    \node[inc, below=3mm of dep] {Log4Shell, xz-utils};
+    \node[inc, below=3mm of build] {SolarWinds};
+    \node[inc, below=3mm of art] {Image bị thay thế, không xác minh};
+    \node[inc, below=3mm of dep2] {Triển khai bản lỗi, không quay lui};
+  \end{tikzpicture}
+  \caption{Các mắt xích của chuỗi cung ứng phần mềm và ví dụ rủi ro tương ứng}
+  \label{fig:supply-chain}
+\end{figure}
+\FloatBarrier
+
+\subsection{Các sự cố tiêu biểu}
+\textbf{SolarWinds (2020).} Nhóm tấn công đã xâm nhập vào hệ thống build của
+phần mềm giám sát mạng SolarWinds Orion và chèn mã độc (được đặt tên SUNBURST)
+vào trong quá trình biên dịch~\cite{mandiant-sunburst}. Vì mã độc được thêm vào
+ở giai đoạn build, các bản cập nhật chứa mã độc vẫn được ký số hợp lệ bởi nhà
+cung cấp và được phân phối qua kênh cập nhật chính thức. Theo công bố của
+SolarWinds, số khách hàng đã cài đặt bản cập nhật bị nhiễm vào khoảng dưới
+18.000 tổ chức. Sự cố cho thấy chữ ký số trên artifact là chưa đủ nếu bản thân
+hệ thống build không đáng tin cậy, đây là động lực trực tiếp cho khung SLSA
+(Mục~\ref{sec:standards}).
+
+\textbf{Log4Shell (CVE-2021-44228, 2021).} Lỗ hổng thực thi mã từ xa trong thư
+viện ghi log Apache Log4j~2, khai thác thông qua cơ chế tra cứu JNDI trong chuỗi
+được ghi log, có điểm CVSS tối đa 10.0~\cite{nvd-log4shell}. Mức độ ảnh hưởng
+của Log4Shell rất rộng vì Log4j thường xuất hiện như một phụ thuộc bắc cầu:
+nhiều tổ chức không biết hệ thống của mình có sử dụng thư viện này hay không.
+Sự cố nhấn mạnh vai trò của phân tích thành phần phần mềm (SCA) và danh mục
+thành phần phần mềm (SBOM) để trả lời nhanh câu hỏi ``hệ thống nào đang bị ảnh
+hưởng''.
+
+\textbf{xz-utils (CVE-2024-3094, 2024).} Một tài khoản đã đóng góp cho dự án
+nén dữ liệu xz-utils trong thời gian dài, trở thành người duy trì (maintainer)
+được tin tưởng, sau đó chèn cửa hậu vào các gói phát hành phiên bản 5.6.0 và
+5.6.1~\cite{nvd-xz}. Cửa hậu nhắm vào tiến trình \texttt{sshd} trên một số bản
+phân phối Linux thông qua thư viện \texttt{liblzma}. Mã độc chỉ có trong gói
+phát hành, không có trong mã nguồn hiển thị trên kho Git, và được phát hiện tình
+cờ khi một kỹ sư điều tra độ trễ bất thường của SSH. Sự cố cho thấy rủi ro đến
+từ chính các dự án thượng nguồn (upstream) và tầm quan trọng của việc quét cả
+artifact cuối cùng, không chỉ mã nguồn.
+
+\subsection{Phản ứng của cộng đồng và chính phủ}
+Sau các sự cố trên, bảo mật chuỗi cung ứng trở thành ưu tiên ở cấp chính sách.
+Sắc lệnh hành pháp 14028 của Hoa Kỳ (05/2021) yêu cầu nhà cung cấp phần mềm cho
+chính phủ liên bang tuân thủ các thực hành phát triển an toàn và cung cấp
+SBOM~\cite{eo14028}. Viện Tiêu chuẩn và Công nghệ Quốc gia Hoa Kỳ (NIST) ban hành
+SSDF~\cite{nist-ssdf}; Quỹ OpenSSF phát triển khung SLSA~\cite{slsa} và dự án
+Sigstore~\cite{sigstore-paper} nhằm giúp việc ký số artifact trở nên phổ biến.
+Bảng~\ref{tab:incidents} tóm tắt các sự cố, mắt xích bị khai thác và biện pháp
+tương ứng được áp dụng trong đề tài.
+
+\begin{table}[!htbp]
+  \centering
+  \fontsize{11pt}{13.42pt}\selectfont
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{0.17\textwidth}|>{\raggedright\arraybackslash}p{0.17\textwidth}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+    \hline
+    \ctuTableHead{Sự cố} & \ctuTableHead{Mắt xích} & \ctuTableHead{Bài học} & \ctuTableHead{Biện pháp trong đề tài} \\
+    \hline
+    SolarWinds & Hệ thống build & Chữ ký không đủ nếu build bị xâm nhập & Build trên runner do GitHub quản lý, ký keyless gắn với danh tính workflow \\
+    \hline
+    Log4Shell & Thư viện phụ thuộc & Cần biết chính xác hệ thống dùng thư viện nào & SCA (OWASP Dependency-Check), SBOM (Syft) \\
+    \hline
+    xz-utils & Thư viện / gói phát hành & Mã độc có thể chỉ nằm trong artifact & Quét container image (Trivy) sau khi build \\
+    \hline
+    Image bị thay thế & Registry & Máy chủ cần xác minh nguồn gốc image & Ký (Cosign) và \texttt{cosign verify} trước khi triển khai \\
+    \hline
+  \end{tabularx}
+  \caption{Các sự cố chuỗi cung ứng tiêu biểu và biện pháp tương ứng}
+  \label{tab:incidents}
+\end{table}
+\FloatBarrier
+
+% -----------------------------------------------------------------------------
+\section{Các nghiên cứu về DevSecOps}
+\label{sec:devsecops-research}
+\subsection{Định nghĩa và mức độ trưởng thành của DevSecOps}
+Mohan và Ben Othmane~\cite{mohan2016} là một trong những công trình sớm khảo sát
+có hệ thống về việc tích hợp bảo mật vào DevOps (SecDevOps). Bằng phương pháp
+mapping study, các tác giả nhận thấy lĩnh vực này khi đó còn non trẻ: nhiều tài
+liệu đến từ giới thực hành (blog, bài thuyết trình) hơn là nghiên cứu học
+thuật, và chưa có định nghĩa thống nhất.
+
+Myrbakken và Colomo-Palacios~\cite{myrbakken2017} thực hiện một tổng quan đa
+nguồn (multivocal literature review), kết hợp cả tài liệu học thuật và tài liệu
+thực hành, để làm rõ định nghĩa, đặc điểm, lợi ích và thách thức của DevSecOps.
+Nghiên cứu chỉ ra DevSecOps không chỉ là bổ sung công cụ bảo mật vào pipeline
+mà còn là thay đổi văn hóa, trong đó trách nhiệm bảo mật được chia sẻ giữa
+nhóm phát triển, vận hành và bảo mật; tự động hóa các bước kiểm tra bảo mật là
+một trong các đặc điểm cốt lõi.
+
+\subsection{Thách thức khi áp dụng DevSecOps}
+Rajapakse và cộng sự~\cite{rajapakse2022} thực hiện tổng quan có hệ thống (SLR)
+các công trình đã được bình duyệt về thách thức và giải pháp khi áp dụng
+DevSecOps. Các thách thức được nhóm theo bốn chủ đề: con người, thực hành, công
+cụ và hạ tầng. Đáng chú ý với đề tài này là nhóm thách thức về công cụ: các
+công cụ kiểm thử bảo mật tự động dễ sinh cảnh báo sai (false positive), làm
+chậm pipeline, và khó tích hợp vào luồng CI/CD vốn yêu cầu phản hồi nhanh. Đây
+chính là sự đánh đổi mà thực nghiệm E1 và E2 của tiểu luận đo lường.
+
+Enck và Williams~\cite{enck2022} tổng hợp kết quả từ các buổi thảo luận với
+nhiều tổ chức trong công nghiệp và chính phủ, đưa ra năm thách thức hàng đầu
+của bảo mật chuỗi cung ứng: cập nhật các phụ thuộc có lỗ hổng, khai thác SBOM
+cho mục đích bảo mật, lựa chọn thành phần phụ thuộc đáng tin cậy, bảo vệ quy
+trình build, và mở rộng việc áp dụng các biện pháp trên ở quy mô lớn.
+
+\subsection{Tấn công và phòng vệ chuỗi cung ứng}
+Ohm và cộng sự~\cite{ohm2020} thu thập một tập dữ liệu các gói mã độc thực tế
+trên các hệ sinh thái npm, PyPI và RubyGems, phân tích cách chúng được đưa vào
+(ví dụ đặt tên gần giống gói phổ biến -- typosquatting, chiếm quyền tài khoản
+người duy trì) và thời điểm mã độc được kích hoạt. Ladisa và
+cộng sự~\cite{ladisa2023} đề xuất một phân loại (taxonomy) các hướng tấn công
+vào chuỗi cung ứng mã nguồn mở dưới dạng cây tấn công, liên kết chúng với các
+sự cố thực tế và các biện pháp bảo vệ, đồng thời đánh giá các biện pháp này qua
+khảo sát chuyên gia.
+
+Về phía phòng vệ, Newman và cộng sự~\cite{sigstore-paper} giới thiệu Sigstore,
+hệ thống ký số ``không cần khóa'' (keyless): thay vì quản lý khóa bí mật dài
+hạn, người ký xác thực bằng danh tính OpenID Connect (ví dụ danh tính của một
+workflow GitHub Actions), nhận chứng chỉ ngắn hạn, và mọi chữ ký được ghi vào
+một nhật ký minh bạch (transparency log) công khai. Cách tiếp cận này loại bỏ
+rủi ro lộ khóa ký và là cơ sở cho việc ký image bằng Cosign trong đề tài.
+
+% -----------------------------------------------------------------------------
+\section{Các nghiên cứu về chiến lược triển khai}
+\label{sec:deploy-research}
+Shahin và cộng sự~\cite{shahin2017} thực hiện tổng quan có hệ thống về các cách
+tiếp cận, công cụ, thách thức và thực hành của tích hợp, phân phối và triển
+khai liên tục. Nghiên cứu ghi nhận rằng triển khai liên tục (Continuous
+Deployment) khó áp dụng hơn đáng kể so với tích hợp liên tục, một phần do rủi
+ro khi đưa phiên bản mới vào môi trường vận hành mà không có sự kiểm soát của
+con người; do đó các cơ chế giảm thiểu rủi ro khi triển khai là một hướng cần
+được quan tâm.
+
+Humble và Farley~\cite{humble2010} hệ thống hóa các mẫu triển khai giúp giảm
+rủi ro khi phát hành, trong đó có Blue-Green Deployment (duy trì hai môi trường
+giống hệt nhau, chuyển lưu lượng từ môi trường cũ sang môi trường mới chỉ khi
+môi trường mới đã sẵn sàng) và Canary Release (đưa phiên bản mới đến một phần
+nhỏ người dùng trước). Fowler~\cite{fowler-bluegreen} nhấn mạnh ưu điểm then
+chốt của Blue-Green là khả năng quay lui gần như tức thời: chỉ cần chuyển lưu
+lượng trở lại môi trường cũ vẫn đang chạy.
+
+Forsgren, Humble và Kim~\cite{forsgren2018}, dựa trên dữ liệu khảo sát nhiều
+năm của chương trình nghiên cứu DORA~\cite{dora}, đề xuất bốn chỉ số then chốt
+để đo hiệu quả phân phối phần mềm: tần suất triển khai, thời gian từ khi thay
+đổi mã đến khi vận hành, tỉ lệ thay đổi gây lỗi và thời gian khôi phục dịch vụ.
+Một phát hiện quan trọng của chương trình là tốc độ và độ ổn định không phải là
+hai mục tiêu đánh đổi lẫn nhau: các tổ chức hiệu quả nhất đạt được đồng thời cả
+hai. Kết quả này ủng hộ giả thuyết của đề tài rằng việc tăng tự động hóa (cổng
+bảo mật, health check, rollback) có thể cải thiện độ an toàn mà không làm mất
+đi lợi ích của triển khai liên tục.
+
+Trong thực tế công nghiệp, các chiến lược Blue-Green và Canary thường được hiện
+thực trên nền tảng điều phối container như Kubernetes cùng các công cụ như Argo
+Rollouts. Ngược lại, với hạ tầng nhỏ chỉ gồm một máy chủ chạy Docker Compose
+--- vốn phổ biến ở doanh nghiệp nhỏ, dự án cá nhân và môi trường học tập ---
+công cụ thường được dùng là các trình cập nhật tự động như Watchtower, vốn chỉ
+thực hiện chiến lược Recreate (dừng phiên bản cũ rồi mới chạy phiên bản mới).
+
+% -----------------------------------------------------------------------------
+\section{Các tiêu chuẩn và khung tham chiếu}
+\label{sec:standards}
+\subsection{NIST SSDF (SP 800-218)}
+Khung phát triển phần mềm an toàn SSDF phiên bản 1.1~\cite{nist-ssdf} tổ chức
+các thực hành thành bốn nhóm: chuẩn bị tổ chức (Prepare the Organization -- PO),
+bảo vệ phần mềm (Protect the Software -- PS), tạo ra phần mềm an toàn (Produce
+Well-Secured Software -- PW) và phản hồi lỗ hổng (Respond to Vulnerabilities --
+RV). Đề tài tập trung vào nhóm PS (bảo vệ tính toàn vẹn của mã nguồn và
+artifact, ví dụ ký số và lưu thông tin nguồn gốc) và PW (kiểm tra mã nguồn và
+thư viện để phát hiện lỗ hổng một cách tự động).
+
+\subsection{SLSA}
+SLSA (Supply-chain Levels for Software Artifacts) phiên bản 1.0~\cite{slsa} định
+nghĩa các cấp độ bảo đảm cho quá trình build theo ``Build track'':
+\begin{itemize}
+  \item \textbf{Build L1:} có thông tin nguồn gốc (provenance) mô tả artifact
+  được build như thế nào.
+  \item \textbf{Build L2:} build trên nền tảng build được lưu trữ (hosted) và
+  provenance được ký bởi nền tảng đó.
+  \item \textbf{Build L3:} nền tảng build được gia cố, ngăn các lần build ảnh
+  hưởng lẫn nhau và ngăn người dùng giả mạo provenance.
+\end{itemize}
+Pipeline của đề tài chạy trên runner do GitHub quản lý và ký artifact bằng danh
+tính của workflow, hướng tới đáp ứng các yêu cầu của Build L2.
+
+\subsection{OWASP Top 10 CI/CD Security Risks}
+Danh sách của OWASP~\cite{owasp-cicd} liệt kê mười nhóm rủi ro đặc thù của hệ
+thống CI/CD, từ CICD-SEC-1 đến CICD-SEC-10. Bảng~\ref{tab:owasp-cicd} chọn ra
+các rủi ro liên quan trực tiếp đến hệ thống của đề tài.
+
+\begin{table}[!htbp]
+  \centering
+  \fontsize{11pt}{13.42pt}\selectfont
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{0.30\textwidth}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+    \hline
+    \ctuTableHead{Rủi ro} & \ctuTableHead{Biểu hiện trong pipeline niên luận} & \ctuTableHead{Biện pháp trong đề tài} \\
+    \hline
+    CICD-SEC-1: Insufficient Flow Control Mechanisms & Mã có lỗ hổng vẫn được build và triển khai vì các bước kiểm tra không chặn & Các cổng kiểm soát bắt buộc (Gate 1--3) \\
+    \hline
+    CICD-SEC-3: Dependency Chain Abuse & Chỉ quét filesystem, kết quả không được dùng để chặn & SCA và quét image với ngưỡng chặn \\
+    \hline
+    CICD-SEC-4: Poisoned Pipeline Execution & Workflow chạy trên sự kiện \texttt{pull\_request} & Không cho job triển khai trên self-hosted runner chạy với pull request \\
+    \hline
+    CICD-SEC-6: Insufficient Credential Hygiene & Chưa kiểm tra secret bị commit vào mã nguồn & Quét secret (Gitleaks), dùng token ngắn hạn \\
+    \hline
+    CICD-SEC-9: Improper Artifact Integrity Validation & Máy chủ chạy bất kỳ image nào có tag \texttt{latest} & Ký image và \texttt{cosign verify} trước khi triển khai \\
+    \hline
+    CICD-SEC-10: Insufficient Logging and Visibility & Chỉ có log Watchtower & Lưu SBOM, báo cáo quét, log triển khai theo commit SHA \\
+    \hline
+  \end{tabularx}
+  \caption{Các rủi ro OWASP CI/CD liên quan đến đề tài}
+  \label{tab:owasp-cicd}
+\end{table}
+\FloatBarrier
+
+% -----------------------------------------------------------------------------
+\section{Nhận xét và khoảng trống nghiên cứu}
+\label{sec:gap}
+Bảng~\ref{tab:related-compare} so sánh các công trình đã trình bày theo bốn
+tiêu chí: trọng tâm, có đề cập bảo mật pipeline hay không, có đề cập chiến lược
+triển khai hay không, và phương pháp nghiên cứu.
+
+\begin{table}[!htbp]
+  \centering
+  \fontsize{11pt}{13.42pt}\selectfont
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{0.22\textwidth}|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{0.11\textwidth}|>{\centering\arraybackslash}p{0.11\textwidth}|>{\raggedright\arraybackslash}p{0.18\textwidth}|}
+    \hline
+    \ctuTableHead{Công trình} & \ctuTableHead{Trọng tâm} & \ctuTableHead{Bảo mật pipeline} & \ctuTableHead{Chiến lược triển khai} & \ctuTableHead{Phương pháp} \\
+    \hline
+    Mohan \& Ben Othmane~\cite{mohan2016} & Hiện trạng nghiên cứu SecDevOps & \checkmark & & Mapping study \\
+    \hline
+    Myrbakken \& Colomo-Palacios~\cite{myrbakken2017} & Định nghĩa, đặc điểm DevSecOps & \checkmark & & Tổng quan đa nguồn \\
+    \hline
+    Rajapakse và cs.~\cite{rajapakse2022} & Thách thức, giải pháp DevSecOps & \checkmark & & Tổng quan có hệ thống \\
+    \hline
+    Enck \& Williams~\cite{enck2022} & Thách thức chuỗi cung ứng & \checkmark & & Thảo luận với tổ chức \\
+    \hline
+    Ladisa và cs.~\cite{ladisa2023} & Phân loại tấn công chuỗi cung ứng & \checkmark & & Phân loại, khảo sát \\
+    \hline
+    Newman và cs.~\cite{sigstore-paper} & Ký số keyless (Sigstore) & \checkmark & & Thiết kế hệ thống \\
+    \hline
+    Shahin và cs.~\cite{shahin2017} & Thực hành CI/CD/CDep & & \checkmark & Tổng quan có hệ thống \\
+    \hline
+    Humble \& Farley~\cite{humble2010} & Mẫu phân phối liên tục & & \checkmark & Sách chuyên khảo \\
+    \hline
+    Forsgren và cs.~\cite{forsgren2018} & Chỉ số hiệu quả phân phối & & \checkmark & Khảo sát định lượng \\
+    \hline
+    \textbf{Tiểu luận này} & \textbf{Pipeline DevSecOps + Blue-Green trên máy chủ đơn} & \checkmark & \checkmark & \textbf{Cài đặt và thực nghiệm so sánh} \\
+    \hline
+  \end{tabularx}
+  \caption{So sánh các công trình liên quan}
+  \label{tab:related-compare}
+\end{table}
+\FloatBarrier
+
+Từ bảng so sánh có thể rút ra các nhận xét sau:
+\begin{itemize}
+  \item Các công trình về DevSecOps và chuỗi cung ứng chủ yếu là tổng quan tài
+  liệu hoặc khảo sát; chúng chỉ ra rằng chi phí thời gian và cảnh báo sai của
+  công cụ là rào cản, nhưng ít cung cấp số liệu đo cụ thể cho một pipeline nhỏ.
+  \item Các công trình về chiến lược triển khai ít đề cập đến bảo mật chuỗi cung
+  ứng, và các hiện thực Blue-Green/Canary phổ biến đều giả định có nền tảng điều
+  phối như Kubernetes.
+  \item Hai khía cạnh ``bảo mật trước khi triển khai'' và ``an toàn trong khi
+  triển khai'' thường được xem xét tách rời, trong khi trên thực tế chúng là hai
+  nửa của cùng một quy trình: một image dù đã được kiểm tra kỹ vẫn có thể lỗi
+  khi chạy, và một cơ chế triển khai an toàn vẫn vô ích nếu image không đáng tin
+  cậy.
+\end{itemize}
+
+Từ đó, tiểu luận xác định khoảng trống cần giải quyết là: \textit{thiết kế, cài
+đặt và đánh giá định lượng một quy trình kết hợp đồng thời các cổng kiểm soát
+bảo mật chuỗi cung ứng và cơ chế triển khai không gián đoạn có tự động quay lui,
+trên hạ tầng nhỏ chỉ gồm một máy chủ chạy Docker Compose}. Hai câu hỏi nghiên
+cứu RQ1 và RQ2 lần lượt tương ứng với hai khía cạnh này; cơ sở lý thuyết cần
+thiết được trình bày ở Chương~\ref{chap:theory}.
+
+\ctutodo{Trước khi nộp: đọc lại bản gốc của từng tài liệu đã trích dẫn để đối
+chiếu nội dung tóm tắt (đặc biệt các kết luận của Rajapakse 2022, Enck \&
+Williams 2022, Shahin 2017), và bổ sung 1--2 bài báo mới (2023--2026) nếu
+GVHD yêu cầu.}
+
+% -----------------------------------------------------------------------------
+% CHƯƠNG II
+% -----------------------------------------------------------------------------
+\chapter{CƠ SỞ LÝ THUYẾT}
+\label{chap:theory}
+\section{Tổng quan về CI/CD}
+CI/CD là một trong những tiến bộ quan trọng trong phát triển phần mềm hiện đại,
+giúp thay đổi cách các nhóm DevOps quản lý quá trình phát triển và triển khai
+sản phẩm. Ban đầu, các quy trình phát triển phần mềm thường bị chia tách với
+quy trình kiểm thử và triển khai, dẫn đến phát hiện lỗi muộn và khó khăn trong
+việc duy trì tính ổn định khi tích hợp nhiều thay đổi cùng lúc.
+
+CI/CD (Continuous Integration/Continuous Delivery -- Deployment) là một tập hợp
+các phương pháp và công cụ giúp tự động hóa quy trình phát triển, kiểm thử, và
+triển khai phần mềm. Mục tiêu chính của CI/CD là đẩy nhanh tốc độ phát hành
+phần mềm, giảm lỗi và nâng cao tính ổn định của các phiên bản phát hành
+(release).
+
+\ctufigure{image2.png}{1.0}{Quy trình CI/CD}{fig:cicd-process}
+
+\subsection{Tích hợp liên tục}
+CI (Continuous Integration) là quá trình liên tục kiểm tra và tích hợp code mới
+vào code chính của một dự án. Mục tiêu của CI là đảm bảo rằng bất kỳ thay đổi
+nào trong code (chẳng hạn như sửa lỗi hoặc thêm tính năng) đều được kiểm tra
+ngay lập tức để phát hiện lỗi trước khi nó gây ảnh hưởng xấu đến hệ thống.
+
+CI hoạt động như một hệ thống kiểm tra tự động. Mỗi khi bạn thay đổi code và
+commit lên hệ thống, các bài kiểm tra tự động sẽ được chạy để kiểm tra xem code
+có hoạt động đúng và không gây lỗi hay không.
+
+\subsubsection{Những bước cơ bản trong CI}
+\begin{enumerate}
+  \item \textbf{Functional tests:} Kiểm tra xem phần mềm có hoạt động đúng theo
+  mong đợi hay không. Đây thường là các bài kiểm tra tự động mà đội ngũ QA
+  (Quality Assurance) phát triển để đảm bảo tính năng hoạt động đúng. VD: Người
+  dùng có thể thêm sản phẩm vào giỏ hàng và thực hiện thanh toán thành công hay
+  không.
+  \item \textbf{Security scans:} Kiểm tra code có lỗ hổng bảo mật nào không,
+  chẳng hạn như khả năng bị SQL Injection hay
+  \href{https://200lab.io/blog/giai-phap-bao-mat-giao-dien-web-ngan-chan-tan-cong-xss-va-csrf-hieu-qua/}{XSS}
+  (Cross-Site Scripting).
+  \item \textbf{Code quality scans:} Đảm bảo code tuân thủ các tiêu chuẩn, ví dụ
+  như độ dài hàm, cách sử dụng khoảng trắng, và các quy tắc coding style. VD:
+  Tiêu chuẩn như đặt tên biến.
+  \item \textbf{Performance tests:} Kiểm tra xem code có đáp ứng được yêu cầu về
+  hiệu suất không, chẳng hạn như thời gian xử lý yêu cầu hoặc khả năng chịu
+  tải.
+  \item \textbf{License scanning:} Kiểm tra xem tất cả các thư viện hoặc công cụ
+  bạn sử dụng có giấy phép phù hợp hay không, để tránh các vấn đề pháp lý.
+  \item \textbf{Fuzz testing:} Gửi các dữ liệu bất thường, như chuỗi ký tự quá
+  dài hoặc số không hợp lệ, vào ứng dụng để kiểm tra xem nó có bị crash hay gặp
+  lỗi bất ngờ không.
+\end{enumerate}
+
+\subsubsection{Lợi ích của việc thiết lập CI}
+CI giúp phát hiện sớm các lỗi tiềm ẩn, tiết kiệm rất nhiều thời gian và công
+sức, rõ ràng việc sửa một lỗi ngay khi vừa phát hiện sẽ dễ dàng hơn nhiều so
+với khi lỗi đó đã tích hợp vào nhiều phần khác của hệ thống.
+
+Ví dụ: Giả sử đội ngũ lập trình đang phát triển một tính năng mới cho ứng dụng.
+Thay vì đợi đến cuối quá trình phát triển để kiểm tra, CI cho phép bạn thực
+hiện các bài kiểm tra ngay khi lập trình viên viết code. Nhờ đó, nếu có lỗi
+xuất hiện, họ có thể phát hiện ngay lập tức và sửa chữa khi vấn đề còn nhỏ,
+thay vì đợi đến khi tính năng đã hoàn thành và tích hợp với các phần khác.
+
+CI giúp toàn bộ đội nhóm đều có thể thấy tình trạng hiện tại của phần mềm, tất
+cả các thành viên từ lập trình viên, quản lý, đến QA (kiểm thử chất lượng), UX
+(trải nghiệm người dùng), và thậm chí cả bộ phận bảo mật có thể theo dõi tiến
+trình và trạng thái của dự án. Từ đó, mọi người có thể điều chỉnh công việc của
+mình để phù hợp với tình trạng thực tế.
+
+Ví dụ: Khi các bài kiểm tra bảo mật được thực hiện thường xuyên, cả nhóm sẽ
+nhận biết được dự án có gặp phải các vấn đề bảo mật mới không. Nếu CI phát hiện
+rằng một đoạn code mới làm lộ lỗ hổng bảo mật, thì không chỉ các lập trình viên
+mà cả các quản lý dự án cũng biết ngay lập tức. Nhóm sẽ có thể phân bổ nguồn
+lực để sửa lỗi hoặc điều chỉnh kế hoạch phát triển.
+
+\subsection{Phân phối/triển khai liên tục}
+CD là quá trình đưa code từ nơi bạn viết lên một nơi mà người dùng có thể sử
+dụng được, như website hoặc ứng dụng di động. Có 2 loại CD chính:
+\begin{itemize}
+  \item \textbf{Continuous Delivery (Phân phối liên tục):} Đảm bảo rằng code
+  luôn sẵn sàng để được triển khai bất cứ lúc nào. Sau khi code đã vượt qua các
+  kiểm tra CI, nó được đặt ở trạng thái sẵn sàng để triển khai. Tuy nhiên, việc
+  triển khai có thể được thực hiện thủ công.
+  \item \textbf{Continuous Deployment (Triển khai liên tục):} Tự động triển khai
+  code ngay khi nó vượt qua tất cả các kiểm tra. Không cần sự can thiệp thủ
+  công, hệ thống sẽ tự động đưa code vào môi trường production.
+\end{itemize}
+
+\subsubsection{Những bước cơ bản trong CD}
+Build: Trước khi triển khai code, thực hiện quá trình build cho các ngôn ngữ
+biên dịch (compiled language) như C, C++, Java,~\ldots
+
+Deploy: Triển khai code: đẩy Docker image lên repository, dùng dòng lệnh để đưa
+code lên AWS,~\ldots{} Triển khai có thể được tự động hoặc thủ công, tùy thuộc
+vào cách bạn thiết lập.
+
+Ví dụ: Khi hoàn thành thêm tính năng mới như giỏ hàng, CD sẽ tự động kiểm tra
+và đóng gói tính năng này rồi triển khai lên website thật để khách hàng có thể
+sử dụng ngay lập tức.
+
+\subsubsection{Lợi ích của việc thiết lập CD}
+Mục tiêu của CD là giúp việc triển khai và phát hành (release) phần mềm trở nên
+dễ dàng và có thể diễn ra thường xuyên mà không gặp nhiều rủi ro. Khi CD được
+thiết lập, mỗi lần bạn commit code, code có thể tự động được triển khai vào các
+môi trường như: review environment, Staging environment hay production
+environment.
+
+Các môi trường khác ngoài production (như review và staging) hoạt động giống
+như những phép thử, nhằm đảm bảo code chạy ổn định trước khi release chính thức
+cho người dùng.
+
+\section{Nền tảng tự động hóa GitHub Actions}
+GitHub Actions là nền tảng tự động hóa được tích hợp sẵn trực tiếp trên hệ sinh
+thái GitHub. Nền tảng này cho phép tạo các quy trình làm việc (workflow) nhằm
+tự động hóa mọi bước trong vòng đời phát triển phần mềm, từ build, test cho đến
+deploy ứng dụng ngay khi có sự kiện xảy ra (như push code hoặc tạo pull
+request).
+
+Trong kiến trúc của GitHub Actions, một luồng công việc tự động được định nghĩa
+thông qua tệp tin cấu hình YAML và bao gồm các thành phần:
+\begin{itemize}
+  \item \textbf{Events (Sự kiện):} Các trigger kích hoạt quy trình, ví dụ như
+  \texttt{push} hoặc \texttt{pull\_request} trên nhánh \texttt{main}.
+  \item \textbf{Jobs (Công việc):} Một luồng có thể chạy một hoặc nhiều job (như
+  Build, Testing, Security\_Scan, Publish) tuần tự hoặc song song trên các máy
+  chủ ảo (runner) do GitHub cung cấp (ví dụ: \texttt{ubuntu-latest}).
+  \item \textbf{Steps (Bước):} Từng nhiệm vụ cụ thể bên trong một job, có thể là
+  thực thi một lệnh shell hoặc gọi các actions có sẵn (như
+  \texttt{actions/checkout} để kéo mã nguồn).
+  \item \textbf{Artifacts (Tài nguyên đầu ra):} Chức năng lưu trữ tạm thời các
+  gói phần mềm hoặc tệp báo cáo (như file \texttt{.war} hoặc báo cáo bảo mật
+  JSON) để chia sẻ giữa các job với nhau.
+\end{itemize}
+
+\ctufigure{image3.png}{0.58}{Kiến trúc của GitHub Actions}{fig:gha-architecture}
+
+\section{Công cụ quản lý dự án và kiểm tra mã nguồn Java}
+Ứng dụng Web trong đề tài được phát triển dựa trên ngôn ngữ Java, do đó yêu cầu
+các công cụ đặc thù để quản lý vòng đời và chất lượng:
+\begin{itemize}
+  \item Apache Maven: Đây là công cụ quản lý dự án (quản lý thư viện phụ thuộc,
+  quản lý vòng đời biên dịch) phổ biến nhất cho Java. Trong hệ thống, Maven
+  đóng vai trò tải các thư viện, chạy các kịch bản kiểm thử (\texttt{mvn test})
+  và đóng gói mã nguồn thành phần mềm hoàn chỉnh định dạng WAR
+  (\texttt{mvn install}).
+  \item Checkstyle: Để đảm bảo tính đồng nhất trong phong cách lập trình và phát
+  hiện sớm các đoạn code không tuân thủ tiêu chuẩn, công cụ Checkstyle được
+  tích hợp vào bước kiểm thử (\texttt{mvn checkstyle:checkstyle}) làm rào chắn
+  (coding convention validator).
+\end{itemize}
+
+\section{DevSecOps và nguyên tắc Shift-Left Security}
+\ctutodo{Định nghĩa DevSecOps; nguyên tắc dịch chuyển bảo mật sang trái; khái
+niệm security gate (cổng kiểm soát) và chính sách chặn theo mức độ nghiêm trọng
+(CVSS).}
+
+\section{Các kỹ thuật kiểm thử bảo mật tự động}
+\subsection{Phân tích mã tĩnh (SAST)}
+\ctutodo{Nguyên lý, ưu nhược điểm, false positive; công cụ CodeQL hoặc SpotBugs +
+FindSecBugs.}
+\subsection{Phân tích thành phần phần mềm (SCA)}
+\ctutodo{Lỗ hổng trong thư viện phụ thuộc, cơ sở dữ liệu NVD/CVE; OWASP
+Dependency-Check.}
+\subsection{Phát hiện secret trong mã nguồn}
+\ctutodo{Rủi ro lộ khóa, token; nguyên lý quét theo mẫu và entropy; Gitleaks.}
+\section{Đánh giá bảo mật (Security Evaluation)}
+Đề tài sử dụng \textbf{Trivy (Aqua Security)}, một công cụ quét lỗ hổng bảo mật
+mã nguồn mở toàn diện. Trivy phân tích cấu trúc tệp tin (filesystem scan) của
+toàn bộ dự án để đối chiếu hệ điều hành và các thư viện phụ thuộc với các cơ sở
+dữ liệu lỗ hổng bảo mật toàn cầu (CVEs). Kết quả quét được xuất ra dưới định
+dạng JSON và có cấu hình chặn đứng toàn bộ tiến trình CI/CD nếu phát hiện lỗ
+hổng nghiêm trọng.
+\ctutodo{Viết lại đoạn trên: phân biệt quét filesystem và quét container image;
+mô tả chính sách chặn theo mức HIGH/CRITICAL và cơ chế ngoại lệ
+\texttt{.trivyignore}.}
+
+\section{SBOM, ký số artifact và khung SLSA}
+\ctutodo{Khái niệm SBOM (định dạng SPDX, CycloneDX); ký số container image với
+Sigstore/Cosign (keyless qua OIDC của GitHub Actions, transparency log Rekor);
+attestation; các cấp độ SLSA và pipeline của đề tài đạt cấp nào.}
+
+\section{Công nghệ ảo hóa (Docker)}
+Docker là nền tảng phần mềm cho phép các nhà phát triển xây dựng, kiểm thử và
+triển khai các ứng dụng thông qua công nghệ ảo hóa ở dạng container. Docker
+đóng gói ứng dụng Web Java cùng toàn bộ môi trường chạy thực tế (runtime, thư
+viện hệ thống) thành các đơn vị chuẩn hóa gọi là Container. Nhờ vậy, ứng dụng
+có thể chạy đồng nhất trên bất kỳ hạ tầng nào mà không gặp tình trạng xung đột
+môi trường. Trong dự án, quá trình này được thực thi thông qua kịch bản
+Dockerfile đa bước (multi-stage) và lệnh \texttt{docker build}.
+
+\section{GitHub Container Registry (GHCR)}
+GitHub Container Registry và Docker Hub là hai nền tảng lưu trữ, quản lý và
+phân phối container image phổ biến. Tuy nhiên, thay vì sử dụng AWS ECR hay
+Docker Hub, đề tài lựa chọn GHCR vì đây là dịch vụ được tích hợp sẵn trong hệ
+sinh thái GitHub.
+
+Việc sử dụng GHCR mang lại những lợi ích cốt lõi cho hệ thống:
+\begin{itemize}
+  \item Cho phép nhà phát triển lưu trữ Docker image ngay tại nơi họ đang quản lý
+  mã nguồn.
+  \item Kết nối cực kỳ liền mạch và có độ tin cậy cao với GitHub Actions.
+  \item Đảm bảo an toàn bảo mật thông qua cơ chế phân quyền chi tiết (granular
+  permissions) và việc xác thực tự động không cần chia sẻ mật khẩu tĩnh
+  (secretless authentication) thông qua token mặc định của GitHub.
+\end{itemize}
+
+\section{Watchtower và cơ chế tự động cập nhật container}
+Watchtower là công cụ hỗ trợ tự động cập nhật Docker container. Công cụ này
+chạy như một container trên máy chủ triển khai và định kỳ kiểm tra Docker
+registry để phát hiện image mới của các container được theo dõi.
+
+Trong hệ thống của đề tài, Watchtower được cấu hình trên máy ảo Ubuntu có cài
+Docker Engine. Sau khi GitHub Actions xuất bản Docker image mới lên GHCR,
+Watchtower sẽ xác thực với GHCR, tải image mới về máy chủ, dừng container ứng
+dụng cũ và khởi động lại container mới từ image vừa tải.
+
+Cơ chế này hoàn thiện giai đoạn Continuous Deployment trong phạm vi nghiên cứu.
+Luồng triển khai tổng quát của hệ thống được mô tả như sau:
+
+\begin{center}
+  \begin{minipage}{0.92\textwidth}
+    \raggedright
+    Push source code $\rightarrow$ GitHub Actions
+    build/test/checkstyle/security scan $\rightarrow$ Docker Build
+    $\rightarrow$ Push Docker image lên GHCR $\rightarrow$ Watchtower phát hiện
+    image mới $\rightarrow$ Pull image $\rightarrow$ Khởi động lại container
+    $\rightarrow$ Health check ứng dụng.
+  \end{minipage}
+\end{center}
+
+\section{Các chiến lược triển khai ứng dụng}
+\ctutodo{Trình bày Recreate (tương ứng Watchtower), Rolling Update, Blue-Green,
+Canary; kèm hình minh họa và bảng so sánh: downtime, chi phí tài nguyên, độ phức
+tạp, khả năng rollback.}
+
+\section{Health check và cơ chế tự động quay lui}
+\ctutodo{Liveness/readiness, health check của Docker, tiêu chí xác định phiên bản
+lỗi, quy trình rollback.}
+
+\section{Các chỉ số đánh giá}
+\ctutodo{Bốn chỉ số DORA (deployment frequency, lead time for changes, change
+failure rate, time to restore); các chỉ số dùng trong thực nghiệm: thời gian
+pipeline, số request lỗi, thời gian gián đoạn, độ trễ p95, MTTR.}
+
+% -----------------------------------------------------------------------------
+% CHƯƠNG III
+% -----------------------------------------------------------------------------
+\chapter{PHÂN TÍCH VÀ THIẾT KẾ HỆ THỐNG}
+\label{chap:design}
+\section{Hiện trạng hệ thống từ niên luận}
+\subsection{Phân tích kiến trúc hệ thống ứng dụng Web mẫu}
+Ứng dụng web mẫu trong đề tài (VProfile) được viết bằng ngôn ngữ lập trình Java
+và được thiết kế theo mô hình đa tầng (Multi-tier) bao gồm các thành phần:
+\begin{itemize}
+  \item Tầng ứng dụng web (Web Tier): Sử dụng Nginx làm reverse proxy và cân bằng
+  tải (load balancer).
+  \item Tầng Ứng dụng (Application Tier): Được viết bằng ngôn ngữ Java và
+  Framework Spring, chạy trên máy chủ Apache Tomcat (port 8080). Đồng thời đóng
+  gói phần mềm đầu ra của tầng này là một tệp định dạng \texttt{.war}.
+  \item Tầng Cơ sở dữ liệu và Dịch vụ hỗ trợ: Bao gồm MySQL 8.0, Memcached
+  (caching), và RabbitMQ (Message Broker).
+  \item Hệ thống CI/CD trong đề tài sẽ tập trung xử lý tự động hóa cho Tầng Ứng
+  dụng web (Java Spring MVC), đảm bảo mã nguồn được kiểm thử, đóng gói thành
+  file \texttt{.war}, và cuối cùng xây dựng thành Docker image để sẵn sàng tích
+  hợp với các tầng dịch vụ khác.
+\end{itemize}
+
+\ctufigure{image4.png}{1.0}{Kiến trúc Web App Java}{fig:webapp-architecture}
+\subsection{Thiết kế luồng công việc tự động hóa (Pipeline Design)}
+Để tối ưu hóa thời gian chạy và đảm bảo tính chặt chẽ, pipeline được chia thành
+5 công việc (Jobs) chính, hoạt động kết hợp giữa tuần tự và song song:
+\begin{enumerate}
+  \item Job CI (Build, Test \& Package): Chạy đầu tiên để kiểm thử mã nguồn và
+  đóng gói thành một artifact (\texttt{.war}).
+  \item Job Security\_Scan: Hoạt động song song với Job CI nhằm đánh giá bảo mật
+  mà không làm kéo dài thời gian chờ đợi.
+  \item Job BUILD\_AMD64 \& BUILD\_ARM64: Chỉ được kích hoạt khi cả hai khâu
+  kiểm thử và bảo mật đều thành công. Hai job này chạy song song trên các hạ
+  tầng khác nhau để đóng gói Docker cho cả hai kiến trúc vi xử lý (x86\_64 và
+  ARM64).
+  \item Job PUBLISH\_TO\_GHCR: Hoạt động cuối cùng, gộp kết quả của hai tiến
+  trình build trên thành một container đa kiến trúc (Multi-arch) và phân phối
+  lên kho lưu trữ của GitHub (GHCR).
+  \item Sau khi image được xuất bản thành công, dịch vụ Watchtower trên máy ảo
+  Ubuntu sẽ tự động kiểm tra, tải phiên bản image mới và khởi động lại container
+  ứng dụng. Qua đó, hệ thống thực hiện Continuous Deployment trong phạm vi môi
+  trường thực nghiệm.
+\end{enumerate}
+
+\section{Phân tích hạn chế và rủi ro}
+\subsection{Hạn chế của pipeline hiện tại}
+\ctutodo{Liệt kê có dẫn chứng: Trivy \texttt{exit-code: 0}; Checkstyle không
+chặn; \texttt{Tests run: 0}; không có SAST, SBOM, chữ ký; Watchtower dùng tag
+\texttt{latest}, dừng rồi mới chạy container mới, không health check, không
+rollback.}
+
+\subsection{Mô hình hóa mối đe dọa theo STRIDE}
+\ctutodo{Vẽ sơ đồ luồng dữ liệu (lập trình viên $\rightarrow$ GitHub $\rightarrow$
+runner $\rightarrow$ GHCR $\rightarrow$ máy chủ). Lập bảng: thành phần, mối đe
+dọa STRIDE, ví dụ, biện pháp giảm thiểu trong thiết kế mới.}
+
+\section{Yêu cầu của hệ thống mới}
+\subsection{Yêu cầu chức năng}
+\ctutodo{Ví dụ: FR1 pipeline thất bại khi có lỗ hổng HIGH/CRITICAL; FR2 mỗi image
+có SBOM và chữ ký; FR3 máy chủ từ chối image chưa ký; FR4 triển khai không gián
+đoạn; FR5 tự động rollback khi health check thất bại.}
+\subsection{Yêu cầu phi chức năng}
+\ctutodo{Ví dụ: thời gian pipeline tăng không quá X\%; thời gian rollback dưới Y
+giây; mọi phiên bản truy vết được qua commit SHA.}
+
+\section{Thiết kế pipeline DevSecOps}
+\ctutodo{Sơ đồ pipeline mới (TikZ hoặc hình): Build \& Unit test (JaCoCo)
+$\parallel$ SAST $\parallel$ SCA $\parallel$ Secret scan $\rightarrow$ Gate 1
+$\rightarrow$ Build image amd64/arm64 $\rightarrow$ Trivy image scan
+$\rightarrow$ Gate 2 $\rightarrow$ Push theo digest, SBOM, ký Cosign
+$\rightarrow$ Gate 3 $\rightarrow$ Deploy. Bảng: gate, công cụ, điều kiện chặn,
+ngoại lệ.}
+
+\section{Thiết kế cơ chế triển khai Blue-Green}
+\subsection{Kiến trúc triển khai}
+\ctutodo{Sơ đồ: Nginx $\rightarrow$ vproapp-blue / vproapp-green; dịch vụ dùng
+chung (MySQL, Memcached, RabbitMQ). Thay \texttt{container\_name} cố định bằng
+hai service; upstream Nginx sinh từ template.}
+\subsection{Luồng triển khai và quay lui}
+\ctutodo{Sơ đồ trạng thái / lưu đồ của \texttt{deploy.sh}: xác minh chữ ký
+$\rightarrow$ khởi động màu rảnh $\rightarrow$ chờ health check $\rightarrow$
+chuyển upstream (\texttt{nginx -s reload}) $\rightarrow$ theo dõi N giây
+$\rightarrow$ giữ hoặc rollback.}
+\subsection{Cơ chế kích hoạt triển khai}
+\ctutodo{Lý do chọn self-hosted runner trên máy ảo (không mở SSH ra Internet, mô
+hình pull giống Watchtower nên so sánh công bằng); phân quyền của runner.}
+
+% -----------------------------------------------------------------------------
+% CHƯƠNG IV
+% -----------------------------------------------------------------------------
+\chapter{CÀI ĐẶT HỆ THỐNG}
+\label{chap:implementation}
+\section{Cài đặt quy trình CI (Continuous Integration)}
+Quá trình cài đặt giải pháp được thực hiện thông qua tệp tin cấu hình YAML
+(\texttt{.github/workflows/main.yml}) đặt tại kho lưu trữ mã nguồn.
+
+\subsection{Tạo access token trên GitHub}
+Tạo \textbf{Personal access tokens} để đăng nhập vào GHCR (GitHub Container
+Registry).
+
+Các quyền cần thiết:
+\begin{itemize}
+  \item Quyền quản lý repo
+  \item Quyền cập nhật workflow
+  \item Quyền ghi và đọc packages
+\end{itemize}
+
+\ctufigure{image5.png}{1.0}{Tạo personal access token (classic)}{fig:pat}
+
+\subsection{Cấu hình sự kiện kích hoạt (Triggers)}
+Hệ thống được thiết lập cơ chế tự động kích hoạt (trigger) khi có sự kiện đẩy
+mã nguồn (\texttt{push}) hoặc tạo yêu cầu gộp mã (\texttt{pull\_request}) vào
+nhánh chính (\texttt{main}). Nền tảng được cấp quyền \texttt{contents: read} để
+sao chép mã nguồn và \texttt{packages: write} để đẩy các container lên GitHub
+Container Registry (GHCR).
+
+\ctufigure{image6.png}{0.42}{Cấu hình sự kiện kích hoạt}{fig:triggers}
+
+\subsection{Cài đặt giai đoạn Tích hợp liên tục (CI)}
+Giai đoạn Tích hợp liên tục chịu trách nhiệm biên dịch và kiểm thử ứng dụng
+Java.
+\begin{itemize}
+  \item Thiết lập môi trường: Khởi tạo máy chủ ảo \texttt{ubuntu-latest}, cài
+  đặt JDK 17 (Temurin). Đặc biệt, cơ chế bộ nhớ đệm (\texttt{cache: 'maven'})
+  được kích hoạt để lưu lại các thư viện phụ thuộc, giúp giảm thiểu thời gian
+  tải lại các package trong các lần chạy sau.
+  \item Biên dịch và Kiểm thử: Lệnh \texttt{mvn install} được thực thi để
+  compile, test, và package ra tệp \texttt{.war}.
+  \item Kiểm tra mã nguồn: Lệnh \texttt{mvn checkstyle:checkstyle} được gọi để
+  đảm bảo mã nguồn tuân thủ các quy tắc lập trình (coding convention).
+  \item Lưu trữ Artifact đầu ra: Gói phần mềm \texttt{vprofile-v2.war} được
+  trích xuất và tải lên bộ nhớ tạm của GitHub Actions (thời hạn 7 ngày) để tiết
+  kiệm tài nguyên.
+\end{itemize}
+
+\ctufigure{image7.png}{1.0}{Job CI}{fig:job-ci}
+
+\subsection{Cài đặt giai đoạn Đánh giá bảo mật DevSecOps}
+Tuân thủ nguyên tắc ``Shift-Left Security'', công việc Security\_Scan được cấu
+hình chạy song song độc lập với tiến trình CI.
+
+Hệ thống sử dụng action \texttt{aquasecurity/trivy-action} để phân tích tĩnh
+toàn bộ hệ thống tập tin (filesystem), tìm kiếm các lỗ hổng của thư viện và hệ
+điều hành dựa trên dữ liệu CVE. Kết quả báo cáo được xuất ra dưới định dạng
+JSON làm cơ sở đánh giá chất lượng.
+
+\ctufigure{image8.png}{1.0}{Job Security\_Scan}{fig:job-security}
+
+\subsection{Cài đặt giai đoạn Đóng gói đa kiến trúc (Multi-Arch Docker Build)}
+Thay vì tự biên dịch lại mã nguồn bên trong Docker (gây dư thừa tài nguyên), hệ
+thống áp dụng nguyên tắc ``Build Once'' (Chỉ biên dịch một lần).
+
+Các Job đóng gói sẽ tải tệp \texttt{.war} từ bước CI về. Dockerfile chỉ cần
+thực hiện lệnh \texttt{COPY} tệp tin này vào máy chủ Tomcat.
+
+Để hỗ trợ tính tương thích cho nhiều nền tảng, mã nguồn được build đồng thời
+cho hai kiến trúc:
+\begin{itemize}
+  \item AMD64: Thực thi trên runner mặc định \texttt{ubuntu-latest}.
+\end{itemize}
+
+\ctufigure{image9.png}{1.0}{Job BUILD\_AMD64}{fig:job-amd64}
+
+\begin{itemize}
+  \item ARM64: Thực thi trực tiếp trên hạ tầng Native ARM
+  (\nolinkurl{ubuntu-24.04-arm}). Việc không sử dụng giả lập QEMU (Quick EMUlator)
+  giúp tốc độ build phần mềm tăng lên đáng kể.
+\end{itemize}
+
+\ctufigure{image10.png}{1.0}{Job BUILD\_ARM64}{fig:job-arm64}
+
+\begin{itemize}
+  \item Thay vì gán nhãn \texttt{latest} ngay lúc này, cả hai Job đều đẩy (push)
+  image lên GHCR dưới dạng chuỗi mã băm (Digest) để tránh xung đột dữ liệu.
+\end{itemize}
+
+\section{Cài đặt các cổng kiểm soát bảo mật}
+\subsection{Bổ sung kiểm thử tự động và đo độ phủ}
+\ctutodo{Viết unit test cho controller/service, cấu hình JaCoCo; chụp kết quả
+\texttt{Tests run} khác 0 và báo cáo độ phủ.}
+\subsection{Cấu hình Checkstyle chặn build}
+\ctutodo{\texttt{failOnViolation}, ngưỡng vi phạm.}
+\subsection{Phân tích mã tĩnh}
+\ctutodo{Job CodeQL hoặc SpotBugs + FindSecBugs; đoạn YAML; kết quả.}
+\subsection{Phân tích thư viện phụ thuộc}
+\ctutodo{Job OWASP Dependency-Check, ngưỡng \texttt{failBuildOnCVSS}; báo cáo.}
+\subsection{Quét secret}
+\ctutodo{Job Gitleaks.}
+\subsection{Quét container image}
+\ctutodo{Chuyển Trivy sang quét image theo digest, \texttt{exit-code: 1},
+\texttt{severity: HIGH,CRITICAL}, \texttt{.trivyignore} kèm lý do.}
+\subsection{Sinh SBOM và ký số image}
+\ctutodo{Syft sinh SBOM; \texttt{cosign sign} keyless, \texttt{cosign attest}
+SBOM; quyền \texttt{id-token: write}. Gắn tag theo commit SHA.}
+
+\section{Cài đặt quy trình CD (Continuous Delivery)}
+Sau khi các container đơn lẻ hoàn tất, công việc PUBLISH\_TO\_GHCR sử dụng công
+cụ \texttt{docker buildx imagetools} để ghép nối hai chuỗi mã băm (Digest của
+AMD64 và ARM64) thành một OCI Manifest duy nhất.
+
+Kết quả đầu ra là một Docker Image hoàn chỉnh trên kho lưu trữ GHCR. Người dùng
+máy chủ truyền thống hay các dòng vi xử lý kiến trúc ARM (như Apple Silicon)
+khi dùng \texttt{docker pull} ứng dụng đều sẽ nhận được container tương thích
+tự động.
+
+\ctufigure{image11.png}{1.0}{Job PUBLISH\_TO\_GHCR}{fig:job-publish}
+
+\section{Cài đặt quy trình CD (Continuous Deployment)}
+\subsection{Cài đặt máy ảo Ubuntu 24.04 bằng Vagrant}
+\textbf{Vagrant được cấu hình như sau:}
+\begin{itemize}
+  \item \textbf{\texttt{Vagrant.configure("2")}:} Sử dụng cấu hình theo chuẩn
+  phiên bản API v2 của Vagrant.
+  \item \textbf{\texttt{config.vm.box = "bento/ubuntu-24.04"}:} Sử dụng hệ điều
+  hành Ubuntu 24.04 LTS được đóng gói bởi Bento.
+  \item \textbf{\texttt{virtualbox.memory = 4096}:} Cấp phát 4096 MB (4 GB) bộ
+  nhớ RAM cho máy ảo để đáp ứng nhu cầu build image và chạy nhiều container
+  cùng lúc.
+  \item \textbf{\texttt{virtualbox.cpus = 4}:} Phân bổ 4 nhân CPU ảo (vCPU) giúp
+  tăng tốc độ build và xử lý tác vụ của ứng dụng.
+  \item \textbf{Cổng 80 (Guest) $\rightarrow$ 8080 (Host):} Cho phép truy cập
+  vào Reverse Proxy (ví dụ: Nginx) từ trình duyệt máy thật thông qua địa chỉ
+  \url{http://localhost:8080}.
+  \item \textbf{Cổng 8080 (Guest) $\rightarrow$ 8081 (Host):} Cho phép truy cập
+  trực tiếp vào dịch vụ backend/ứng dụng qua địa chỉ
+  \url{http://localhost:8081}.
+  \item \texttt{auto\_correct: true}: Tự động chuyển sang một cổng khả dụng khác
+  trên máy Host nếu cổng được chỉ định (8080 hoặc 8081) đang bị ứng dụng khác
+  chiếm dụng.
+  \item \texttt{config.vm.provision}: tự động hoá cài đặt và khởi tạo dịch vụ
+  Docker.
+\end{itemize}
+
+\ctufigure{image12.png}{1.0}{Cấu hình Vagrant}{fig:vagrant}
+
+\begin{table}[!htbp]
+  \centering
+  \fontsize{11pt}{13.42pt}\selectfont
+  \setlength{\tabcolsep}{3pt}
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabularx}{\textwidth}{|>{\hsize=0.8\hsize\linewidth=\hsize\raggedright\arraybackslash}X|>{\hsize=1.1\hsize\linewidth=\hsize\raggedright\arraybackslash}X|>{\hsize=1.1\hsize\linewidth=\hsize\raggedright\arraybackslash}X|}
+    \hline
+    \ctuTableHead{Thành phần} & \ctuTableHead{Cấu hình} & \ctuTableHead{Mục đích / Chức năng} \\
+    \hline
+    Virtualization Provider & VMware & Nền tảng ảo hóa máy ảo \\
+    \hline
+    Base OS & bento/ubuntu-24.04 (v202510.26.0) & Hệ điều hành Ubuntu 24.04 LTS \\
+    \hline
+    CPU / RAM & 4 vCPUs / 4096 MB RAM & Đảm bảo hiệu năng cho Docker và các dịch vụ \\
+    \hline
+    Port 80 (Guest) & 8080 (Host) & Truy cập Reverse Proxy (\url{http://localhost:8080}) \\
+    \hline
+    Port 8080 (Guest) & 8081 (Host) & Truy cập trực tiếp Backend (\url{http://localhost:8081}) \\
+    \hline
+    Shared Directory & /vagrant $\leftrightarrow$ Thư mục dự án & Đồng bộ mã nguồn theo thời gian thực \\
+    \hline
+    Container Engine & docker.io, docker-compose-v2 & Quản lý và thực thi môi trường container \\
+    \hline
+    Registry Authentication & GitHub Container Registry (ghcr.io) & Xác thực để kéo/đẩy container image \\
+    \hline
+  \end{tabularx}
+  \caption{Bảng cấu hình Vagrant}
+  \label{tab:vagrant}
+\end{table}
+\FloatBarrier
+
+\subsection{Cài đặt docker-compose}
+\subsubsection{Tổng quan kiến trúc hệ thống}
+\textbf{Hệ thống được chia thành các lớp chức năng sau:}
+\begin{itemize}
+  \item \textbf{Lớp Web (Presentation/Proxy Layer):} vproweb (Nginx).
+  \item \textbf{Lớp Ứng dụng (Application Layer):} vproapp (Java Web/Backend
+  App).
+  \item \textbf{Lớp Middleware \& Cache:} vpromq01 (RabbitMQ), vprocache01
+  (Memcached).
+  \item \textbf{Lớp Dữ liệu (Database Layer):} vprodb (MySQL Database).
+  \item \textbf{Lớp Tự động hóa CD (Continuous Deployment Layer):} watchtower (Tự
+  động cập nhật phiên bản mới).
+\end{itemize}
+
+\ctufigure{image13.png}{1.0}{Sơ đồ kiến trúc hệ thống Web trên nền Docker}{fig:docker-architecture}
+
+\subsubsection{Cấu hình dịch vụ Cơ sở dữ liệu vprodb}
+\textbf{Dịch vụ cơ sở dữ liệu vprodb được cấu hình như sau:}
+\begin{itemize}
+  \item \textbf{build.context:} Xây dựng image từ Dockerfile trong thư mục
+  \nolinkurl{./Docker-files/db} (chứa các script khởi tạo schema database ban
+  đầu).
+  \item \textbf{ports (3306:3306):} Mở cổng chuẩn của MySQL để cho phép kết nối
+  từ trong mạng container hoặc từ bên ngoài.
+  \item \textbf{volumes (vprodbdata:/var/lib/mysql):} Gắn volume vprodbdata vào
+  thư mục lưu trữ dữ liệu của MySQL. Đảm bảo tính toàn vẹn và bền vững của dữ
+  liệu (Data Persistence), dữ liệu không bị mất khi container bị xóa hoặc khởi
+  động lại.
+  \item \textbf{environment:} Thiết lập mật khẩu lấy từ biến môi trường cho tài
+  khoản root của cơ sở dữ liệu.
+\end{itemize}
+
+\ctufigure{image14.png}{0.83}{Cơ sở dữ liệu vprodb}{fig:vprodb}
+
+\subsubsection{Cấu hình dịch vụ Bộ nhớ đệm vprocache01}
+\textbf{Dịch vụ Bộ nhớ đệm vprocache01 được cấu hình như sau:}
+\begin{itemize}
+  \item \textbf{image: memcached:} Sử dụng image Memcached chính thức từ Docker
+  Hub.
+  \item \textbf{Mục đích:} Cung cấp cơ chế lưu trữ đệm trong RAM (In-memory
+  Caching) tại cổng 11211, giúp giảm tải truy vấn cho cơ sở dữ liệu và tăng tốc
+  độ phản hồi cho người dùng.
+\end{itemize}
+
+\ctufigure{image15.png}{0.40}{Bộ nhớ đệm vprocache01}{fig:vprocache}
+
+\subsubsection{Cấu hình dịch vụ RabbitMQ}
+\textbf{Dịch vụ RabbitMQ được cấu hình như sau:}
+\begin{itemize}
+  \item \textbf{image rabbitmq:} Sử dụng hệ thống Message Broker RabbitMQ.
+  \item \textbf{ports (5672:5672):} Cổng giao thức AMQP dùng để truyền/nhận các
+  bản tin (message) giữa các thành phần.
+  \item \textbf{Mục đích:} Hỗ trợ xử lý bất đồng bộ (Asynchronous Processing) và
+  phân tách phụ thuộc (Decoupling) giữa các module tác vụ.
+\end{itemize}
+
+\ctufigure{image16.png}{0.84}{Cấu hình dịch vụ RabbitMQ}{fig:rabbitmq}
+
+\subsubsection{Cấu hình dịch vụ Watchtower}
+Dịch vụ Watchtower được cấu hình nhằm tự động phát hiện và triển khai image mới
+của ứng dụng Backend.
+\begin{itemize}
+  \item \textbf{image:} Sử dụng image \texttt{nickfedor/watchtower:1.21.0} để
+  theo dõi phiên bản image của các container được chỉ định.
+  \item \textbf{restart:} Thiết lập \texttt{unless-stopped} để dịch vụ tự khởi
+  động lại khi Docker daemon hoặc máy chủ khởi động lại, trừ khi dịch vụ được
+  dừng chủ động.
+  \item \textbf{\texttt{/var/run/docker.sock:/var/run/docker.sock}:} Gắn Docker
+  socket của máy Host để Watchtower có thể kiểm tra image, dừng và tạo lại
+  container khi có bản cập nhật.
+  \item \textbf{\texttt{/root/.docker/config.json:/config.json:ro}:} Gắn thông
+  tin xác thực Docker ở chế độ chỉ đọc, cho phép Watchtower truy cập image
+  private từ GitHub Container Registry.
+  \item \textbf{\texttt{-{}-interval 60}:} Thực hiện kiểm tra registry theo chu
+  kỳ 60 giây để phát hiện image tag \texttt{latest} mới.
+  \item \textbf{\texttt{-{}-cleanup}:} Tự động dọn dẹp các image cũ sau khi
+  container được cập nhật, giúp tiết kiệm dung lượng lưu trữ.
+  \item \textbf{\texttt{-{}-debug}:} Bật log chi tiết để hỗ trợ theo dõi tiến
+  trình và gỡ lỗi quá trình cập nhật.
+  \item \textbf{vproapp:} Giới hạn phạm vi theo dõi cho container vproapp, tránh
+  cập nhật ngoài ý muốn đối với các dịch vụ hạ tầng khác.
+\end{itemize}
+
+\ctufigure{image17.png}{0.94}{Dịch vụ Watchtower}{fig:watchtower-service}
+
+\subsubsection{Cấu hình dịch vụ Ứng dụng Backend}
+\textbf{Dịch vụ Ứng dụng Backend được cấu hình như sau:}
+\begin{itemize}
+  \item \textbf{image:} Kéo image ứng dụng trực tiếp từ GitHub Container
+  Registry (GHCR) (\texttt{ghcr.io/duytechie/actionprofile:latest}).
+  \item \textbf{labels:} Đánh dấu nhãn \texttt{enable: "true"} để dịch vụ
+  Watchtower nhận diện và theo dõi việc cập nhật image mới.
+  \item \textbf{depends\_on:} Chỉ định thứ tự phụ thuộc. vproapp sẽ chỉ được
+  khởi động sau khi 3 dịch vụ nền tảng (vprodb, vprocache01, vpromq01) đã được
+  khởi chạy.
+\end{itemize}
+
+\ctufigure{image18.png}{0.80}{Dịch vụ Ứng dụng Backend}{fig:vproapp}
+
+\subsubsection{Cấu hình dịch vụ Web Proxy vproweb}
+\textbf{Dịch vụ Web Proxy vproweb được cấu hình như sau:}
+\begin{itemize}
+  \item \textbf{build.context:} Xây dựng image từ thư mục
+  \nolinkurl{./Docker-files/web}. Dockerfile sử dụng image Nginx làm nền tảng, xoá
+  cấu hình mặc định và sao chép file \texttt{nginvproapp.conf} vào thư mục cấu
+  hình của Nginx.
+  \item \textbf{image:} Đặt tên image sau khi build là
+  \nolinkurl{vprocontainers/vprofileweb} để thuận tiện cho việc quản lý và triển
+  khai lại dịch vụ.
+  \item \textbf{ports (80:80):} Công khai cổng HTTP 80 của container ra máy Host,
+  tạo điểm truy cập web cho người dùng.
+  \item \textbf{nginvproapp.conf:} Khai báo upstream vproapp trỏ đến
+  \texttt{vproapp:8080} và sử dụng \texttt{proxy\_pass} để chuyển tiếp mọi yêu
+  cầu từ Nginx đến ứng dụng Backend thông qua mạng nội bộ Docker.
+  \item \textbf{depends\_on:} Chỉ định vproweb khởi động sau vproapp, bảo đảm
+  lớp proxy được triển khai sau dịch vụ ứng dụng Backend.
+\end{itemize}
+
+\ctufigure{image19.png}{0.66}{Dịch vụ Web Proxy vproweb}{fig:vproweb}
+
+\subsubsection{Theo dõi quá trình triển khai tự động}
+Sau khi image ứng dụng được phát hành, quá trình triển khai có thể được theo
+dõi qua kết quả workflow và log của Watchtower. Log cần thể hiện các bước phát
+hiện image mới, dừng container vproapp và khởi tạo lại container với cấu hình
+đã cập nhật.
+
+\ctufigure{image20.png}{1.0}{Kết quả thực thi workflow triển khai ứng dụng}{fig:workflow-result}
+
+\ctufigure{image21.png}{0.62}{Kết quả Workflow trong VSCode}{fig:workflow-vscode}
+
+Log của Watchtower được sử dụng để xác nhận hệ thống đã kéo image mới và cập
+nhật container vproapp thành công.
+
+\ctufigure{image22.png}{1.0}{Log của Watchtower khi cập nhật container vproapp}{fig:watchtower-log-deploy}
+
+\section{Cài đặt cơ chế triển khai Blue-Green}
+\subsection{Tách dịch vụ ứng dụng thành Blue và Green}
+\ctutodo{Đoạn \texttt{docker-compose.yml} mới; healthcheck cho container
+ứng dụng.}
+\subsection{Cấu hình Nginx chuyển hướng lưu lượng}
+\ctutodo{Template upstream và lệnh reload.}
+\subsection{Kịch bản triển khai và quay lui}
+\ctutodo{Trích các phần chính của \texttt{deploy.sh}: \texttt{cosign verify},
+vòng lặp health check, chuyển upstream, rollback.}
+\subsection{Cài đặt self-hosted runner và job Deploy}
+\ctutodo{Cài runner trên máy ảo bằng Vagrant provision; job \texttt{DEPLOY} với
+\texttt{runs-on: self-hosted}, \texttt{needs: PUBLISH\_TO\_GHCR}.}
+
+% -----------------------------------------------------------------------------
+% CHƯƠNG V
+% -----------------------------------------------------------------------------
+\chapter{THỰC NGHIỆM VÀ ĐÁNH GIÁ}
+\label{chap:evaluation}
+\section{Môi trường và phương pháp thực nghiệm}
+\ctutodo{Cấu hình máy host, máy ảo (4 vCPU, 4~GB RAM), runner GitHub; phiên bản
+công cụ. Định nghĩa baseline (pipeline niên luận + Watchtower) và hệ thống đề
+xuất. Số lần lặp mỗi thực nghiệm; cách tính trung bình và độ lệch chuẩn.}
+
+\section{Kiểm chứng chức năng pipeline}
+\subsection{Mục tiêu kiểm thử}
+Kiểm thử quy trình CI/CD đã xây dựng cho ứng dụng VProfile để xác nhận một thay
+đổi mã nguồn có được tích hợp, kiểm tra, đóng gói, phát hành và triển khai đúng
+theo luồng tự động hay không.
+\begin{itemize}
+  \item \textbf{Phát hiện lỗi cấu hình:} Kiểm tra các lỗi có thể làm workflow
+  không được kích hoạt, Maven không tạo được artifact, image không được phát
+  hành hoặc container không được cập nhật.
+  \item \textbf{Đối chiếu yêu cầu:} Đánh giá các kết quả thực tế với yêu cầu đặt
+  ra cho pipeline: build một lần, quét bảo mật, build đa kiến trúc, công bố
+  image lên GHCR và tự động cập nhật dịch vụ vproapp.
+  \item \textbf{Quan sát log file:} Ghi nhận log Maven, kết quả GitHub Actions,
+  artifact, manifest image và log Watchtower để phục vụ việc đánh giá, bảo trì
+  và khắc phục sự cố về sau.
+\end{itemize}
+
+\subsection{Phạm vi kiểm thử}
+Việc kiểm thử được thực hiện theo các nhóm sau:
+\begin{itemize}
+  \item \textbf{Kiểm thử cấu hình và kích hoạt Workflow:} Xác nhận workflow được
+  kích hoạt khi có push hoặc pull request vào nhánh main, đồng thời phân quyền
+  đọc mã nguồn và ghi package được khai báo đúng.
+  \item \textbf{Kiểm thử tích hợp liên tục:} Xác nhận Maven có thể biên dịch,
+  chạy vòng đời test, đóng gói WAR và tải artifact vprofile-app lên GitHub
+  Actions.
+  \item \textbf{Kiểm thử chất lượng và bảo mật:} Xác nhận báo cáo Checkstyle và
+  file \texttt{trivy-results.json} được sinh ra, có thể tải lại để đánh giá mã
+  nguồn và thư viện phụ thuộc.
+  \item \textbf{Kiểm thử phát hành và triển khai:} Xác nhận image AMD64 và ARM64
+  được gộp thành manifest trên GHCR; Watchtower phát hiện image latest mới và
+  cập nhật đúng container vproapp.
+\end{itemize}
+
+Ngoài phạm vi kiểm thử:
+\begin{itemize}
+  \item Kiểm thử khả năng chịu tải, kiểm thử hiệu năng chuyên sâu, kiểm thử xâm
+  nhập và kiểm thử đầy đủ mọi chức năng giao diện người dùng chưa thuộc phạm vi
+  của niên luận này.
+  \item Workflow này chỉ thực hiện các bước test cơ bản. Chưa thực hiện các quy
+  trình test và security test đầy đủ và chuyên nghiệp.
+\end{itemize}
+
+\subsection{Kế hoạch kiểm thử}
+Các nội dung được kiểm thử:
+\begin{itemize}
+  \item \textbf{Kích hoạt pipeline:} Sự kiện push và pull request vào nhánh
+  main.
+  \item \textbf{Build và artifact:} Lệnh \texttt{mvn install}, file WAR tại
+  \texttt{target} và artifact vprofile-app.
+  \item \textbf{Quét và báo cáo:} Job Security Scan, file
+  \texttt{trivy-results.json} và báo cáo Checkstyle.
+  \item \textbf{Image đa kiến trúc:} Job BUILD\_AMD64, BUILD\_ARM64 và
+  PUBLISH\_TO\_GHCR cùng các tag commit, latest trên GHCR.
+  \item \textbf{Triển khai tự động:} Chuỗi log Watchtower từ lúc phát hiện image
+  mới đến khi khởi tạo lại vproapp.
+\end{itemize}
+
+\subsection{Các bước kiểm thử và kết quả ghi nhận}
+Lúc này server Ubuntu để dựng trang web Java đã được khởi động sẵn.
+
+Mã nguồn được thay đổi và đẩy lên GitHub đồng thời kích hoạt GitHub Workflow.
+
+\ctufigure{image23.jpeg}{1.0}{Git commit}{fig:git-commit}
+
+\subsubsection{Kiểm thử workflow và artifact}
+GitHub Workflow được kích hoạt. Kết quả mong đợi là các job hiển thị Success,
+\textbf{artifact vprofile-app} và \textbf{trivy-scan-results} có thể tải về, còn
+manifest đa kiến trúc được tạo sau khi hai image theo digest hoàn tất.
+
+\ctufigure{image24.png}{1.0}{Summary của GitHub Actions và danh sách Artifacts}{fig:gha-summary}
+
+\subsubsection{Kiểm thử build và test Maven}
+Kịch bản chạy lệnh \texttt{mvn test} nhằm xác nhận dự án có thể biên dịch và
+các test case được Maven nhận diện. Kết quả ghi nhận BUILD SUCCESS nhưng
+Tests run: 0, Failures: 0, Errors: 0.
+
+\ctufigure{image25.png}{1.0}{Kết quả mvn test}{fig:mvn-test}
+
+\subsubsection{Kiểm thử phát hành image đa kiến trúc}
+Kịch bản kiểm tra package trên GHCR xác nhận cùng một tag \texttt{latest} có
+thể tham chiếu đến image \texttt{linux/amd64} và \texttt{linux/arm64}.
+
+\ctufigure{image26.png}{1.0}{Package trên GHCR}{fig:ghcr-package}
+
+\subsubsection{Kiểm thử cập nhật tự động bằng Watchtower}
+Sau đó nếu workflow chạy thành công thì image latest mới đã xuất hiện trên
+GHCR. Kết quả mong đợi là Watchtower lần lượt kéo image, phát hiện image mới,
+dừng vproapp cũ và khởi động lại vproapp với cấu hình được giữ nguyên. Các dịch
+vụ hạ tầng khác không nằm trong phạm vi cập nhật của Watchtower.
+
+Thực hiện kết nối SSH vào server Ubuntu.
+
+\ctufigure{image27.png}{0.93}{vagrant ssh}{fig:vagrant-ssh}
+
+Kiểm tra log của watchtower bằng lệnh sau:
+
+\begin{lstlisting}[language=bash]
+docker compose logs -f watchtower | rg --line-buffered 'Image pull completed|Found new image|Stopping container|Starting container with updated configuration|Update session completed'
+\end{lstlisting}
+
+\ctufigure{image22.png}{1.0}{Log Watchtower}{fig:watchtower-log-test}
+
+Sau đó người dùng sẽ nhận được bản cập nhật mới một cách tự động sau lần
+refresh lại trang web.
+
+\ctufigure{image28.png}{0.56}{Phiên bản web mới được cập nhật}{fig:web-updated}
+
+\subsubsection{Đánh giá kiểm thử}
+Quy trình đã đáp ứng được mục tiêu tự động hóa việc build, test, security test,
+phát hành image đa kiến trúc và triển khai lại dịch vụ của ứng dụng web.
+
+\section{Thực nghiệm E1: Hiệu quả của các cổng bảo mật}
+\ctutodo{Tạo các nhánh chứa lỗi cố ý: (a) thư viện có CVE đã biết, ví dụ
+log4j-core 2.14.1; (b) secret giả; (c) đoạn mã SQL injection; (d) base image cũ
+có CVE. Bảng: kịch bản $\times$ gate, baseline có chặn không / hệ thống mới có
+chặn không, công cụ phát hiện, số false positive.}
+
+\section{Thực nghiệm E2: Chi phí thời gian của pipeline}
+\ctutodo{Chạy baseline và pipeline mới mỗi loại 15--20 lần; bảng và biểu đồ thời
+gian từng job (trung bình $\pm$ độ lệch chuẩn); phần trăm thời gian tăng thêm;
+ảnh hưởng của cache.}
+
+\section{Thực nghiệm E3: Thời gian gián đoạn khi triển khai}
+\ctutodo{k6 tạo tải liên tục (ví dụ 50 VUs) trong lúc triển khai; mỗi chiến lược
+10 lần. Bảng: số request lỗi, thời gian gián đoạn (giây), độ trễ p95; biểu đồ
+tỉ lệ lỗi theo thời gian.}
+
+\section{Thực nghiệm E4: Khả năng tự phục hồi}
+\ctutodo{(a) triển khai image lỗi khởi động; (b) image chưa ký. So sánh Watchtower
+và Blue-Green: phiên bản lỗi có nhận lưu lượng không, thời gian khôi phục
+(MTTR), image chưa ký có bị từ chối không.}
+
+\section{Thảo luận}
+\subsection{Trả lời câu hỏi nghiên cứu}
+\ctutodo{Trả lời RQ1 và RQ2 dựa trên số liệu E1--E4.}
+\subsection{Các yếu tố ảnh hưởng đến tính hợp lệ}
+\ctutodo{Threats to validity: chỉ một ứng dụng mẫu, một máy chủ, runner GitHub có
+thời gian chạy dao động, lỗi được tạo nhân tạo.}
+
+% -----------------------------------------------------------------------------
+% KẾT LUẬN
+% -----------------------------------------------------------------------------
+\ctuheading{KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN}
+\setcounter{introsection}{0}
+\introsection{Kết quả đạt được}
+\ctutodo{Tóm tắt đóng góp và kết quả chính bằng số liệu.}
+\introsection{Hạn chế}
+\ctutodo{Một máy chủ đơn; cơ sở dữ liệu dùng chung, chưa xử lý migration; chưa
+đánh giá DAST; v.v.}
+\introsection{Hướng phát triển}
+\ctutodo{Chuyển lên Kubernetes với Argo CD (GitOps) và Argo Rollouts (Canary);
+bổ sung DAST (OWASP ZAP); chính sách admission (Kyverno) xác minh chữ ký; đạt
+SLSA cấp cao hơn.}
+
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{TÀI LIỆU THAM KHẢO}
+\begin{thebibliography}{99}
+  \bibitem{vprofile}
+  vprofile-project, \url{https://github.com/hkhcoder/vprofile-project}.
+
+  \bibitem{200lab-cicd}
+  200Lab, ``CI/CD là gì?'', \url{https://200lab.io/blog/ci-cd-la-gi}.
+
+  \bibitem{push-ghcr}
+  GitHub Marketplace, ``Push to GHCR'',
+  \url{https://github.com/marketplace/actions/push-to-ghcr}.
+
+  \bibitem{login-action}
+  Docker, ``Login Action'', \url{https://github.com/docker/login-action}.
+
+  \bibitem{blackduck-cicd}
+  Black Duck, ``Continuous Integration and Continuous Delivery/Deployment'',
+
+  \bibitem{nist-ssdf}
+  M. Souppaya, K. Scarfone, D. Dodson, ``Secure Software Development Framework
+  (SSDF) Version 1.1'', NIST SP 800-218, 2022.
+
+  \bibitem{slsa}
+  OpenSSF, ``SLSA specification v1.0'', \url{https://slsa.dev/spec/v1.0/}.
+
+  \bibitem{owasp-cicd}
+  OWASP, ``Top 10 CI/CD Security Risks'',
+  \url{https://owasp.org/www-project-top-10-ci-cd-security-risks/}.
+
+  \bibitem{dora}
+  Google Cloud, ``Accelerate State of DevOps Report'', \url{https://dora.dev/research/}.
+
+  \bibitem{fowler-bluegreen}
+  M. Fowler, ``BlueGreenDeployment'',
+  \url{https://martinfowler.com/bliki/BlueGreenDeployment.html}.
+
+  \bibitem{sigstore}
+  Sigstore, ``Cosign documentation'', \url{https://docs.sigstore.dev/}.
+
+  \bibitem{trivy}
+  Aqua Security, ``Trivy documentation'', \url{https://trivy.dev/}.
+
+  \bibitem{k6}
+  Grafana Labs, ``k6 documentation'', \url{https://grafana.com/docs/k6/}.
+
+  \bibitem{mohan2016}
+  V. Mohan, L. Ben Othmane, ``SecDevOps: Is It a Marketing Buzzword? Mapping
+  Research on Security in DevOps'', in \textit{Proc. 11th Int. Conf. on
+  Availability, Reliability and Security (ARES)}, IEEE, 2016.
+
+  \bibitem{myrbakken2017}
+  H. Myrbakken, R. Colomo-Palacios, ``DevSecOps: A Multivocal Literature
+  Review'', in \textit{Software Process Improvement and Capability
+  Determination (SPICE 2017)}, CCIS vol.~770, Springer, 2017.
+
+  \bibitem{rajapakse2022}
+  R. N. Rajapakse, M. Zahedi, M. A. Babar, H. Shen, ``Challenges and solutions
+  when adopting DevSecOps: A systematic review'', \textit{Information and
+  Software Technology}, vol.~141, 106700, 2022.
+
+  \bibitem{enck2022}
+  W. Enck, L. Williams, ``Top Five Challenges in Software Supply Chain Security:
+  Observations From 30 Industry and Government Organizations'', \textit{IEEE
+  Security \& Privacy}, vol.~20, no.~2, 2022.
+
+  \bibitem{ohm2020}
+  M. Ohm, H. Plate, A. Sykosch, M. Meier, ``Backstabber's Knife Collection: A
+  Review of Open Source Software Supply Chain Attacks'', in \textit{Detection
+  of Intrusions and Malware, and Vulnerability Assessment (DIMVA)}, LNCS,
+  Springer, 2020.
+
+  \bibitem{ladisa2023}
+  P. Ladisa, H. Plate, M. Martinez, O. Barais, ``SoK: Taxonomy of Attacks on
+  Open-Source Software Supply Chains'', in \textit{IEEE Symposium on Security
+  and Privacy (SP)}, 2023.
+
+  \bibitem{sigstore-paper}
+  Z. Newman, J. S. Meyers, S. Torres-Arias, ``Sigstore: Software Signing for
+  Everybody'', in \textit{Proc. ACM SIGSAC Conf. on Computer and Communications
+  Security (CCS)}, 2022.
+
+  \bibitem{shahin2017}
+  M. Shahin, M. Ali Babar, L. Zhu, ``Continuous Integration, Delivery and
+  Deployment: A Systematic Review on Approaches, Tools, Challenges and
+  Practices'', \textit{IEEE Access}, vol.~5, pp.~3909--3943, 2017.
+
+  \bibitem{humble2010}
+  J. Humble, D. Farley, \textit{Continuous Delivery: Reliable Software Releases
+  through Build, Test, and Deployment Automation}, Addison-Wesley, 2010.
+
+  \bibitem{forsgren2018}
+  N. Forsgren, J. Humble, G. Kim, \textit{Accelerate: The Science of Lean
+  Software and DevOps}, IT Revolution Press, 2018.
+
+  \bibitem{mandiant-sunburst}
+  Mandiant (FireEye), ``Highly Evasive Attacker Leverages SolarWinds Supply
+  Chain to Compromise Multiple Global Victims With SUNBURST Backdoor'', 2020.
+
+  \bibitem{nvd-log4shell}
+  NIST National Vulnerability Database, ``CVE-2021-44228'',
+  \url{https://nvd.nist.gov/vuln/detail/CVE-2021-44228}.
+
+  \bibitem{nvd-xz}
+  NIST National Vulnerability Database, ``CVE-2024-3094'',
+  \url{https://nvd.nist.gov/vuln/detail/CVE-2024-3094}.
+
+  \bibitem{eo14028}
+  The White House, ``Executive Order 14028: Improving the Nation's
+  Cybersecurity'', 2021.
+\end{thebibliography}
+
+\end{document}
