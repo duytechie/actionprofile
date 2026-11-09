@@ -832,43 +832,241 @@ các công cụ đặc thù để quản lý vòng đời và chất lượng:
 \end{itemize}
 
 \section{DevSecOps và nguyên tắc Shift-Left Security}
-\ctutodo{Định nghĩa DevSecOps; nguyên tắc dịch chuyển bảo mật sang trái; khái
-niệm security gate (cổng kiểm soát) và chính sách chặn theo mức độ nghiêm trọng
-(CVSS).}
+\label{sec:devsecops}
+\subsection{Khái niệm DevSecOps}
+DevSecOps (Development, Security and Operations) là sự mở rộng của DevOps, trong
+đó bảo mật được xem là trách nhiệm chung của cả nhóm phát triển, vận hành và
+bảo mật, và được tích hợp vào từng giai đoạn của vòng đời phần mềm thay vì chỉ
+là một bước kiểm tra riêng biệt trước khi phát hành~\cite{myrbakken2017}. Về mặt
+kỹ thuật, DevSecOps thể hiện qua việc tự động hóa các hoạt động bảo mật (phân
+tích mã, kiểm tra thư viện, quét image, ký số, xác minh) và đưa chúng vào chính
+pipeline CI/CD, để mọi thay đổi đều được kiểm tra theo cùng một cách, ở cùng một
+nơi.
 
+\subsection{Nguyên tắc dịch chuyển sang trái}
+Nếu vòng đời phần mềm được biểu diễn từ trái (viết mã) sang phải (vận hành), thì
+``dịch chuyển sang trái'' (shift-left) nghĩa là đưa các hoạt động kiểm tra bảo
+mật về càng gần thời điểm viết mã càng tốt. Lỗi được phát hiện càng sớm thì
+ngữ cảnh càng rõ ràng (lập trình viên vừa viết đoạn mã đó), phạm vi ảnh hưởng
+càng nhỏ và chi phí khắc phục càng thấp so với khi lỗi đã được đóng gói, phân
+phối và chạy trên môi trường vận hành.
+
+Tuy nhiên, dịch chuyển sang trái không có nghĩa là chỉ kiểm tra ở phía trái.
+Như sự cố xz-utils (Mục~\ref{sec:supply-chain}) cho thấy, một số rủi ro chỉ
+xuất hiện trong artifact cuối cùng. Do đó đề tài áp dụng mô hình kiểm tra nhiều
+lớp: kiểm tra mã nguồn và thư viện ngay sau khi commit, kiểm tra container image
+sau khi build, và xác minh chữ ký ngay trước khi triển khai.
+
+\subsection{Cổng kiểm soát bảo mật và chính sách chặn}
+Cổng kiểm soát (security gate hoặc quality gate) là một điểm trong pipeline tại
+đó kết quả của một hoặc nhiều công cụ kiểm tra được so với một chính sách đã
+định trước; nếu vi phạm, pipeline dừng lại và artifact không được chuyển sang
+giai đoạn tiếp theo. Một công cụ quét chỉ sinh báo cáo mà không chặn (như cấu
+hình Trivy với \texttt{exit-code: 0} trong niên luận) chưa phải là một cổng
+kiểm soát.
+
+Chính sách chặn thường dựa trên mức độ nghiêm trọng của lỗ hổng theo thang điểm
+CVSS (Common Vulnerability Scoring System)~\cite{cvss} (Bảng~\ref{tab:cvss}).
+Một chính sách phổ biến là chặn khi có lỗ hổng mức High hoặc Critical đã có bản
+vá.
+
+\begin{table}[!htbp]
+  \centering
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabular}{|l|c|}
+    \hline
+    \ctuTableHead{Mức độ} & \ctuTableHead{Điểm CVSS v3} \\
+    \hline
+    None & 0.0 \\
+    \hline
+    Low & 0.1 -- 3.9 \\
+    \hline
+    Medium & 4.0 -- 6.9 \\
+    \hline
+    High & 7.0 -- 8.9 \\
+    \hline
+    Critical & 9.0 -- 10.0 \\
+    \hline
+  \end{tabular}
+  \caption{Thang mức độ nghiêm trọng theo CVSS v3}
+  \label{tab:cvss}
+\end{table}
+\FloatBarrier
+
+Khi thiết kế chính sách chặn cần cân nhắc ba vấn đề:
+\begin{itemize}
+  \item \textbf{Ngưỡng chặn:} ngưỡng quá thấp khiến pipeline liên tục thất bại vì
+  các lỗ hổng ít rủi ro, làm nhóm phát triển mất niềm tin vào công cụ; ngưỡng
+  quá cao bỏ lọt lỗ hổng nghiêm trọng.
+  \item \textbf{Cơ chế ngoại lệ:} một số lỗ hổng chưa có bản vá hoặc không thể
+  khai thác trong ngữ cảnh của ứng dụng. Các ngoại lệ cần được ghi rõ mã CVE, lý
+  do chấp nhận và thời hạn xem xét lại, đồng thời được lưu trong kho mã để có
+  thể truy vết.
+  \item \textbf{Chặn khi lỗi (fail-closed):} nếu bản thân công cụ kiểm tra gặp lỗi
+  (ví dụ không tải được cơ sở dữ liệu lỗ hổng), pipeline nên dừng thay vì coi
+  như kiểm tra đã đạt.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
 \section{Các kỹ thuật kiểm thử bảo mật tự động}
+\label{sec:security-testing}
 \subsection{Phân tích mã tĩnh (SAST)}
-\ctutodo{Nguyên lý, ưu nhược điểm, false positive; công cụ CodeQL hoặc SpotBugs +
-FindSecBugs.}
+Kiểm thử bảo mật tĩnh (Static Application Security Testing -- SAST) phân tích mã
+nguồn hoặc mã byte mà không cần chạy chương trình, nhằm phát hiện các mẫu lập
+trình không an toàn như SQL injection, XSS, đường dẫn tệp không được kiểm soát
+hay sử dụng thuật toán mã hóa yếu. Kỹ thuật cốt lõi là phân tích luồng dữ liệu
+(taint analysis): theo dõi dữ liệu từ nguồn không tin cậy (source, ví dụ tham số
+HTTP) đến các điểm nhạy cảm (sink, ví dụ câu lệnh SQL) mà không đi qua bước làm
+sạch (sanitizer).
+
+Ưu điểm của SAST là chạy được rất sớm, chỉ ra chính xác dòng mã có vấn đề. Nhược
+điểm là tỉ lệ cảnh báo sai (false positive) có thể cao do công cụ không hiểu đầy
+đủ ngữ cảnh chạy, và không phát hiện được lỗi chỉ xuất hiện khi ứng dụng chạy
+(lỗi cấu hình máy chủ, lỗi xác thực).
+
+Hai lựa chọn cho ứng dụng Java trong đề tài:
+\begin{itemize}
+  \item \textbf{CodeQL}~\cite{codeql}: công cụ của GitHub, chuyển mã nguồn thành một
+  cơ sở dữ liệu và chạy các truy vấn viết bằng ngôn ngữ QL để tìm lỗ hổng. CodeQL
+  tích hợp sẵn với GitHub Actions và hiển thị kết quả trong tab Security của
+  kho mã.
+  \item \textbf{SpotBugs + FindSecBugs}~\cite{findsecbugs}: SpotBugs phân tích mã byte
+  Java để tìm lỗi lập trình; plugin FindSecBugs bổ sung các luật phát hiện lỗ
+  hổng bảo mật. Công cụ chạy như một plugin Maven nên dễ tích hợp vào bước build
+  hiện có.
+\end{itemize}
+
 \subsection{Phân tích thành phần phần mềm (SCA)}
-\ctutodo{Lỗ hổng trong thư viện phụ thuộc, cơ sở dữ liệu NVD/CVE; OWASP
-Dependency-Check.}
+Phân tích thành phần phần mềm (Software Composition Analysis -- SCA) xác định các
+thư viện bên thứ ba (kể cả phụ thuộc bắc cầu) mà ứng dụng sử dụng cùng phiên
+bản của chúng, sau đó đối chiếu với các cơ sở dữ liệu lỗ hổng công khai như NVD
+(National Vulnerability Database) để báo cáo các CVE ảnh hưởng. Với ứng dụng
+Java, phần lớn mã thực thi đến từ thư viện, nên SCA thường phát hiện được nhiều
+lỗ hổng thực tế hơn SAST.
+
+Đề tài sử dụng \textbf{OWASP Dependency-Check}~\cite{dependency-check}, chạy dưới
+dạng plugin Maven. Công cụ suy ra định danh CPE của từng tệp JAR rồi tra cứu
+trong NVD; tham số \texttt{failBuildOnCVSS} cho phép làm build thất bại khi có
+lỗ hổng vượt ngưỡng điểm CVSS. Do công cụ tải dữ liệu từ API của NVD, cần cấu
+hình khóa API và bộ nhớ đệm cơ sở dữ liệu để tránh làm pipeline chậm.
+
 \subsection{Phát hiện secret trong mã nguồn}
-\ctutodo{Rủi ro lộ khóa, token; nguyên lý quét theo mẫu và entropy; Gitleaks.}
-\section{Đánh giá bảo mật (Security Evaluation)}
-Đề tài sử dụng \textbf{Trivy (Aqua Security)}, một công cụ quét lỗ hổng bảo mật
-mã nguồn mở toàn diện. Trivy phân tích cấu trúc tệp tin (filesystem scan) của
-toàn bộ dự án để đối chiếu hệ điều hành và các thư viện phụ thuộc với các cơ sở
-dữ liệu lỗ hổng bảo mật toàn cầu (CVEs). Kết quả quét được xuất ra dưới định
-dạng JSON và có cấu hình chặn đứng toàn bộ tiến trình CI/CD nếu phát hiện lỗ
-hổng nghiêm trọng.
-\ctutodo{Viết lại đoạn trên: phân biệt quét filesystem và quét container image;
-mô tả chính sách chặn theo mức HIGH/CRITICAL và cơ chế ngoại lệ
-\texttt{.trivyignore}.}
+Secret là các thông tin bí mật như mật khẩu, khóa API, token truy cập hay khóa
+riêng. Khi bị commit vào kho mã, secret vẫn tồn tại trong lịch sử Git ngay cả
+khi tệp đã bị xóa ở commit sau. Công cụ \textbf{Gitleaks}~\cite{gitleaks} quét
+nội dung và lịch sử commit dựa trên hai kỹ thuật: biểu thức chính quy nhận dạng
+định dạng của các loại secret phổ biến (ví dụ token GitHub, khóa AWS), và độ đo
+entropy để phát hiện chuỗi ngẫu nhiên có khả năng là khóa. Khi phát hiện secret,
+biện pháp đúng là thu hồi và cấp lại secret đó, không chỉ xóa khỏi mã nguồn.
 
+% -----------------------------------------------------------------------------
+\section{Quét lỗ hổng container image với Trivy}
+\label{sec:trivy}
+Trivy~\cite{trivy} là công cụ quét lỗ hổng mã nguồn mở của Aqua Security, hỗ trợ
+nhiều loại mục tiêu. Hai chế độ liên quan đến đề tài là:
+\begin{itemize}
+  \item \textbf{Quét hệ thống tệp (\texttt{fs}):} quét thư mục mã nguồn, nhận dạng
+  thư viện qua các tệp khai báo (ví dụ \texttt{pom.xml}). Đây là chế độ được dùng
+  trong niên luận.
+  \item \textbf{Quét container image (\texttt{image}):} quét image đã build, bao gồm
+  các gói của hệ điều hành nền (ví dụ các gói Ubuntu trong image Tomcat), môi
+  trường chạy Java và các thư viện nằm trong tệp WAR. Chế độ này phản ánh đúng
+  những gì sẽ thực sự chạy trên máy chủ.
+\end{itemize}
+
+Trong đề tài, Trivy được chuyển sang quét image theo digest ngay sau bước build,
+với tham số \texttt{severity: HIGH,CRITICAL} và \texttt{exit-code: 1} để làm
+pipeline thất bại khi có lỗ hổng vượt ngưỡng. Tùy chọn
+\texttt{ignore-unfixed} có thể được dùng để bỏ qua các lỗ hổng chưa có bản vá.
+Các ngoại lệ được khai báo trong tệp \texttt{.trivyignore} kèm chú thích lý do,
+đúng với cơ chế ngoại lệ đã nêu ở Mục~\ref{sec:devsecops}.
+
+% -----------------------------------------------------------------------------
 \section{SBOM, ký số artifact và khung SLSA}
-\ctutodo{Khái niệm SBOM (định dạng SPDX, CycloneDX); ký số container image với
-Sigstore/Cosign (keyless qua OIDC của GitHub Actions, transparency log Rekor);
-attestation; các cấp độ SLSA và pipeline của đề tài đạt cấp nào.}
+\label{sec:sbom-signing}
+\subsection{Danh mục thành phần phần mềm (SBOM)}
+SBOM (Software Bill of Materials) là danh sách có cấu trúc, đọc được bằng máy,
+liệt kê toàn bộ thành phần cấu thành một phần mềm cùng phiên bản, nhà cung cấp,
+giấy phép và quan hệ phụ thuộc. Hai định dạng phổ biến là \textbf{SPDX} do Linux
+Foundation phát triển (đã được chuẩn hóa thành ISO/IEC 5962:2021)~\cite{spdx} và
+\textbf{CycloneDX} do OWASP phát triển~\cite{cyclonedx}. Khi một lỗ hổng mới như
+Log4Shell được công bố, tổ chức có SBOM của từng image có thể tra cứu ngay image
+nào bị ảnh hưởng mà không cần quét lại. Đề tài dùng công cụ Syft để sinh SBOM
+cho mỗi image.
 
+\subsection{Ký số container image với Sigstore/Cosign}
+Container image trong registry được định danh bởi digest (giá trị băm SHA-256
+của manifest), nên nội dung của một digest không thể bị thay đổi. Tuy nhiên tag
+(như \texttt{latest}) có thể được trỏ sang digest khác bởi bất kỳ ai có quyền
+ghi vào registry. Ký số cho phép máy chủ xác minh rằng image cần chạy được tạo
+ra bởi đúng pipeline của dự án.
+
+Cosign, thuộc dự án Sigstore~\cite{sigstore-paper, sigstore}, hỗ trợ ký theo cơ chế
+``keyless'' (Hình~\ref{fig:cosign}):
+\begin{enumerate}
+  \item Workflow GitHub Actions yêu cầu một token OIDC từ GitHub; token này chứa
+  danh tính của workflow (kho mã, tệp workflow, nhánh).
+  \item Cosign gửi token đến \textbf{Fulcio} (cơ quan cấp chứng chỉ của Sigstore)
+  để nhận một chứng chỉ ngắn hạn gắn với danh tính đó và một cặp khóa tạm thời.
+  \item Cosign ký digest của image, lưu chữ ký vào registry bên cạnh image, và
+  ghi bản ghi vào \textbf{Rekor} -- nhật ký minh bạch công khai, không thể sửa.
+  \item Khi xác minh, \texttt{cosign verify} kiểm tra chữ ký, chứng chỉ và bản
+  ghi Rekor, đồng thời kiểm tra danh tính người ký có khớp với workflow mong đợi
+  (tham số \texttt{-{}-certificate-identity} và
+  \texttt{-{}-certificate-oidc-issuer}).
+\end{enumerate}
+Vì khóa ký chỉ tồn tại trong thời gian chạy job, không có khóa bí mật dài hạn
+nào cần lưu trữ hay có thể bị lộ.
+
+\begin{figure}[!htbp]
+  \centering
+  \begin{tikzpicture}[
+      box/.style={draw, rounded corners, align=center, minimum height=11mm,
+        text width=32mm, font=\small},
+      lbl/.style={font=\footnotesize, align=center},
+      >=stealth]
+    \node[box] (gha) at (0,0) {Workflow GitHub Actions};
+    \node[box] (fulcio) at (8.5,0) {Fulcio (cơ quan cấp chứng chỉ)};
+    \node[box] (ghcr) at (0,-3.4) {GHCR\\ (image + chữ ký)};
+    \node[box] (rekor) at (8.5,-3.4) {Rekor (nhật ký minh bạch)};
+    \node[box] (srv) at (0,-6.6) {Máy chủ triển khai};
+    \draw[->, thick] ([yshift=2mm]gha.east) -- node[lbl, above] {(1) token OIDC} ([yshift=2mm]fulcio.west);
+    \draw[->, thick] ([yshift=-2mm]fulcio.west) -- node[lbl, below] {(2) chứng chỉ ngắn hạn} ([yshift=-2mm]gha.east);
+    \draw[->, thick] (gha) -- node[lbl, left] {(3) đẩy chữ ký} (ghcr);
+    \draw[->, thick] (gha.south east) -- node[lbl, below, sloped] {(3) ghi bản ghi chữ ký} (rekor.north west);
+    \draw[->, thick, dashed] (srv) -- node[lbl, left] {(4) cosign verify} (ghcr);
+    \draw[->, thick, dashed] (srv.east) -| node[lbl, below, pos=0.25] {(4) đối chiếu bản ghi} (rekor.south);
+  \end{tikzpicture}
+  \caption{Luồng ký và xác minh image theo cơ chế keyless của Sigstore}
+  \label{fig:cosign}
+\end{figure}
+\FloatBarrier
+
+\subsection{Attestation và thông tin nguồn gốc}
+Ngoài chữ ký trên image, Cosign còn có thể tạo \textit{attestation}: một khẳng
+định đã được ký theo định dạng in-toto, gắn một tài liệu (ví dụ SBOM hoặc thông
+tin nguồn gốc build -- provenance) với digest của image. Nhờ đó, máy chủ có thể
+xác minh không chỉ ``ai đã ký image'' mà còn ``image này chứa những thành phần
+nào'' và ``được build từ commit nào''. Như đã trình bày ở
+Mục~\ref{sec:standards}, việc build trên runner do GitHub quản lý kết hợp với
+provenance được ký là các yêu cầu của SLSA Build L2~\cite{slsa}.
+
+% -----------------------------------------------------------------------------
 \section{Công nghệ ảo hóa (Docker)}
 Docker là nền tảng phần mềm cho phép các nhà phát triển xây dựng, kiểm thử và
 triển khai các ứng dụng thông qua công nghệ ảo hóa ở dạng container. Docker
 đóng gói ứng dụng Web Java cùng toàn bộ môi trường chạy thực tế (runtime, thư
 viện hệ thống) thành các đơn vị chuẩn hóa gọi là Container. Nhờ vậy, ứng dụng
 có thể chạy đồng nhất trên bất kỳ hạ tầng nào mà không gặp tình trạng xung đột
-môi trường. Trong dự án, quá trình này được thực thi thông qua kịch bản
-Dockerfile đa bước (multi-stage) và lệnh \texttt{docker build}.
+môi trường. Trong dự án, Dockerfile của ứng dụng dùng image nền
+\texttt{tomcat:10-jdk21} và chỉ sao chép tệp WAR đã được build ở bước CI
+(nguyên tắc ``build once''), nên image không cần chứa Maven hay mã nguồn.
+
+Docker Compose cho phép mô tả nhiều container liên quan (ứng dụng, cơ sở dữ
+liệu, bộ nhớ đệm, hàng đợi thông điệp, proxy) trong một tệp YAML và quản lý
+chúng như một đơn vị. Các container trong cùng một dự án Compose được đặt trong
+một mạng nội bộ và gọi nhau bằng tên dịch vụ; đây là cơ sở để Nginx chuyển
+hướng lưu lượng giữa hai dịch vụ Blue và Green.
 
 \section{GitHub Container Registry (GHCR)}
 GitHub Container Registry và Docker Hub là hai nền tảng lưu trữ, quản lý và
@@ -891,13 +1089,11 @@ Watchtower là công cụ hỗ trợ tự động cập nhật Docker container.
 chạy như một container trên máy chủ triển khai và định kỳ kiểm tra Docker
 registry để phát hiện image mới của các container được theo dõi.
 
-Trong hệ thống của đề tài, Watchtower được cấu hình trên máy ảo Ubuntu có cài
+Trong hệ thống của niên luận, Watchtower được cấu hình trên máy ảo Ubuntu có cài
 Docker Engine. Sau khi GitHub Actions xuất bản Docker image mới lên GHCR,
 Watchtower sẽ xác thực với GHCR, tải image mới về máy chủ, dừng container ứng
-dụng cũ và khởi động lại container mới từ image vừa tải.
-
-Cơ chế này hoàn thiện giai đoạn Continuous Deployment trong phạm vi nghiên cứu.
-Luồng triển khai tổng quát của hệ thống được mô tả như sau:
+dụng cũ và khởi động lại container mới từ image vừa tải. Luồng triển khai tổng
+quát như sau:
 
 \begin{center}
   \begin{minipage}{0.92\textwidth}
@@ -905,24 +1101,217 @@ Luồng triển khai tổng quát của hệ thống được mô tả như sau:
     Push source code $\rightarrow$ GitHub Actions
     build/test/checkstyle/security scan $\rightarrow$ Docker Build
     $\rightarrow$ Push Docker image lên GHCR $\rightarrow$ Watchtower phát hiện
-    image mới $\rightarrow$ Pull image $\rightarrow$ Khởi động lại container
-    $\rightarrow$ Health check ứng dụng.
+    image mới $\rightarrow$ Pull image $\rightarrow$ Dừng container cũ
+    $\rightarrow$ Khởi động container mới.
   \end{minipage}
 \end{center}
 
+Cơ chế này đơn giản và phù hợp với máy chủ đơn, nhưng có ba hạn chế quan trọng
+đối với mục tiêu của tiểu luận:
+\begin{itemize}
+  \item Container cũ bị dừng trước khi container mới sẵn sàng, nên ứng dụng bị
+  gián đoạn trong suốt thời gian Tomcat khởi động (chiến lược Recreate, xem
+  Mục~\ref{sec:deploy-strategies}).
+  \item Watchtower không chờ ứng dụng trong container mới thực sự phục vụ được
+  yêu cầu và không tự động quay lại phiên bản cũ khi phiên bản mới bị lỗi.
+  \item Watchtower theo dõi một tag (ví dụ \texttt{latest}) và không xác minh chữ
+  ký, nên sẽ chạy bất kỳ image nào được gắn tag đó trong registry.
+\end{itemize}
+Trong tiểu luận, Watchtower được giữ lại làm phương án đối chứng (baseline) cho
+các thực nghiệm ở Chương~\ref{chap:evaluation}.
+
+% -----------------------------------------------------------------------------
 \section{Các chiến lược triển khai ứng dụng}
-\ctutodo{Trình bày Recreate (tương ứng Watchtower), Rolling Update, Blue-Green,
-Canary; kèm hình minh họa và bảng so sánh: downtime, chi phí tài nguyên, độ phức
-tạp, khả năng rollback.}
+\label{sec:deploy-strategies}
+Chiến lược triển khai quyết định cách phiên bản mới thay thế phiên bản đang chạy
+và ảnh hưởng trực tiếp đến thời gian gián đoạn, tài nguyên cần thiết và khả năng
+quay lui~\cite{humble2010}.
 
+\textbf{Recreate.} Dừng toàn bộ phiên bản cũ, sau đó khởi động phiên bản mới.
+Đơn giản và không bao giờ có hai phiên bản chạy song song, nhưng luôn có một
+khoảng gián đoạn bằng thời gian khởi động của phiên bản mới. Muốn quay lui phải
+triển khai lại phiên bản cũ, cũng chịu thêm một khoảng gián đoạn. Watchtower
+thực hiện chiến lược này.
+
+\textbf{Rolling Update.} Khi ứng dụng chạy nhiều bản sao (replica) sau bộ cân
+bằng tải, các bản sao được thay thế lần lượt, nên luôn còn bản sao phục vụ yêu
+cầu. Chiến lược này là mặc định của Kubernetes, nhưng đòi hỏi nhiều bản sao và
+trong lúc cập nhật có cả hai phiên bản cùng phục vụ người dùng.
+
+\textbf{Blue-Green.} Duy trì hai môi trường giống nhau, ``Blue'' đang phục vụ và
+``Green'' rảnh. Phiên bản mới được triển khai lên môi trường rảnh, kiểm tra cho
+đến khi sẵn sàng, sau đó bộ định tuyến chuyển toàn bộ lưu lượng sang. Môi trường
+cũ được giữ nguyên để có thể chuyển lưu lượng trở lại gần như tức
+thời~\cite{fowler-bluegreen} (Hình~\ref{fig:bluegreen}).
+
+\textbf{Canary.} Phiên bản mới nhận một phần nhỏ lưu lượng (ví dụ 5\%), các chỉ
+số lỗi và độ trễ được theo dõi; nếu ổn định thì tăng dần tỉ lệ. Canary giảm
+phạm vi ảnh hưởng của lỗi nhưng cần hệ thống giám sát và cơ chế phân chia lưu
+lượng theo trọng số, và thời gian triển khai kéo dài hơn.
+
+\begin{figure}[!htbp]
+  \centering
+  \begin{tikzpicture}[
+      box/.style={draw, rounded corners, align=center, minimum height=10mm,
+        text width=36mm, font=\small},
+      >=stealth]
+    \node[box] (user) at (0,0) {Người dùng};
+    \node[box] (nginx) at (0,-2) {Nginx (reverse proxy)};
+    \node[box, fill=blue!10] (blue) at (-3.3,-4.6) {vproapp-blue\\ phiên bản N (đang phục vụ)};
+    \node[box, fill=green!10] (green) at (3.3,-4.6) {vproapp-green\\ phiên bản N+1 (đang kiểm tra)};
+    \node[box, text width=70mm] (shared) at (0,-7.2) {MySQL, Memcached, RabbitMQ (dùng chung)};
+    \draw[->, thick] (user) -- (nginx);
+    \draw[->, very thick] (nginx) -- node[left, font=\footnotesize, pos=0.4] {100\% lưu lượng} (blue);
+    \draw[->, thick, dashed] (nginx) -- node[right, font=\footnotesize, pos=0.4] {sau khi sẵn sàng} (green);
+    \draw[->] (blue) -- (shared);
+    \draw[->] (green) -- (shared);
+  \end{tikzpicture}
+  \caption{Mô hình triển khai Blue-Green với Nginx}
+  \label{fig:bluegreen}
+\end{figure}
+\FloatBarrier
+
+Bảng~\ref{tab:deploy-compare} so sánh bốn chiến lược trong bối cảnh của đề tài.
+
+\begin{table}[!htbp]
+  \centering
+  \fontsize{11pt}{13.42pt}\selectfont
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{0.17\textwidth}|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|>{\raggedright\arraybackslash}X|}
+    \hline
+    \ctuTableHead{Tiêu chí} & \ctuTableHead{Recreate} & \ctuTableHead{Rolling} & \ctuTableHead{Blue-Green} & \ctuTableHead{Canary} \\
+    \hline
+    Gián đoạn & Có & Không & Không & Không \\
+    \hline
+    Tài nguyên thêm & Không & Thêm bản sao tạm thời & Gấp đôi tầng ứng dụng khi triển khai & Thêm bản sao canary \\
+    \hline
+    Quay lui & Triển khai lại, có gián đoạn & Cập nhật ngược lần lượt & Chuyển lưu lượng, gần như tức thời & Rút lưu lượng khỏi canary \\
+    \hline
+    Hai phiên bản cùng phục vụ & Không & Có & Không & Có \\
+    \hline
+    Độ phức tạp trên máy chủ đơn & Thấp & Cần nhiều bản sao và cân bằng tải & Trung bình & Cao, cần giám sát theo chỉ số \\
+    \hline
+  \end{tabularx}
+  \caption{So sánh các chiến lược triển khai}
+  \label{tab:deploy-compare}
+\end{table}
+\FloatBarrier
+
+Với hạ tầng một máy chủ chạy Docker Compose, Blue-Green là lựa chọn cân bằng: loại
+bỏ gián đoạn và có khả năng quay lui tức thời, trong khi chỉ cần thêm một
+container ứng dụng trong lúc triển khai và một bộ định tuyến đã có sẵn (Nginx).
+Việc chuyển lưu lượng được thực hiện bằng cách thay đổi cấu hình upstream rồi
+chạy \texttt{nginx -s reload}: tiến trình master của Nginx khởi động các worker
+mới với cấu hình mới, còn các worker cũ ngừng nhận kết nối mới và kết thúc sau
+khi xử lý xong các yêu cầu đang dở~\cite{nginx-control}, nên không có yêu cầu nào
+bị cắt ngang.
+
+Hạn chế chung của Blue-Green là cơ sở dữ liệu thường được dùng chung giữa hai
+môi trường; nếu phiên bản mới thay đổi lược đồ dữ liệu theo cách không tương
+thích ngược thì việc quay lui không còn an toàn. Vấn đề này nằm ngoài phạm vi
+của đề tài, như đã nêu trong phần Giới thiệu.
+
+% -----------------------------------------------------------------------------
 \section{Health check và cơ chế tự động quay lui}
-\ctutodo{Liveness/readiness, health check của Docker, tiêu chí xác định phiên bản
-lỗi, quy trình rollback.}
+\label{sec:healthcheck}
+\subsection{Kiểm tra tình trạng ứng dụng}
+Một container ở trạng thái ``đang chạy'' chưa chắc ứng dụng bên trong đã phục vụ
+được yêu cầu: Tomcat có thể còn đang triển khai tệp WAR, hoặc ứng dụng khởi động
+nhưng không kết nối được cơ sở dữ liệu. Kiểm tra tình trạng (health check) giải
+quyết vấn đề này bằng cách định kỳ gửi một yêu cầu thử đến ứng dụng. Có thể phân
+biệt hai loại kiểm tra:
+\begin{itemize}
+  \item \textbf{Liveness:} tiến trình còn sống và phản hồi hay không; dùng để quyết
+  định có khởi động lại container hay không.
+  \item \textbf{Readiness:} ứng dụng đã sẵn sàng nhận lưu lượng hay chưa; dùng để
+  quyết định có chuyển lưu lượng đến hay không. Với Blue-Green, đây là loại kiểm
+  tra quyết định thời điểm chuyển đổi.
+\end{itemize}
 
+Docker hỗ trợ khai báo health check qua chỉ thị \texttt{HEALTHCHECK} trong
+Dockerfile hoặc khóa \texttt{healthcheck} trong Compose, với các tham số
+\texttt{test} (lệnh kiểm tra), \texttt{interval}, \texttt{timeout},
+\texttt{retries} và \texttt{start\_period} (khoảng thời gian khởi động mà lỗi chưa
+bị tính)~\cite{docker-healthcheck}. Container sẽ có trạng thái \texttt{starting},
+\texttt{healthy} hoặc \texttt{unhealthy}. Cần lưu ý rằng Docker Engine (không dùng
+Swarm) chỉ đánh dấu trạng thái chứ không tự khởi động lại hay thay thế container
+\texttt{unhealthy}; hành động phải do kịch bản triển khai đảm nhiệm.
+
+\subsection{Tiêu chí xác định phiên bản lỗi}
+Đề tài sử dụng hai tiêu chí, tương ứng với hai thời điểm:
+\begin{enumerate}
+  \item \textbf{Trước khi chuyển lưu lượng:} container mới phải đạt trạng thái
+  \texttt{healthy} (trang đăng nhập trả về mã HTTP 200) trong một khoảng thời gian
+  tối đa; nếu không, việc triển khai bị hủy và lưu lượng vẫn ở môi trường cũ.
+  \item \textbf{Sau khi chuyển lưu lượng:} trong một cửa sổ quan sát (ví dụ 60
+  giây), kịch bản tiếp tục kiểm tra phiên bản mới; nếu số lần thất bại vượt
+  ngưỡng, lưu lượng được chuyển trở lại môi trường cũ.
+\end{enumerate}
+
+\subsection{Quy trình quay lui}
+Nhờ môi trường cũ vẫn chạy trong suốt cửa sổ quan sát, quay lui chỉ gồm thao tác
+ghi lại cấu hình upstream trỏ về môi trường cũ và nạp lại Nginx, không cần tải
+lại image hay khởi động lại Tomcat. Chỉ sau khi cửa sổ quan sát kết thúc thành
+công, môi trường cũ mới được dừng để giải phóng tài nguyên. Ngoài ra, việc gắn
+tag image theo commit SHA (thay vì \texttt{latest}) bảo đảm luôn xác định được
+chính xác phiên bản nào đang chạy và phiên bản nào là bản ổn định trước đó.
+
+% -----------------------------------------------------------------------------
 \section{Các chỉ số đánh giá}
-\ctutodo{Bốn chỉ số DORA (deployment frequency, lead time for changes, change
-failure rate, time to restore); các chỉ số dùng trong thực nghiệm: thời gian
-pipeline, số request lỗi, thời gian gián đoạn, độ trễ p95, MTTR.}
+\label{sec:metrics}
+\subsection{Các chỉ số DORA}
+Chương trình nghiên cứu DORA~\cite{dora, forsgren2018} đề xuất bốn chỉ số then
+chốt, chia thành hai nhóm:
+\begin{itemize}
+  \item \textbf{Thông lượng (throughput):} tần suất triển khai (deployment
+  frequency) và thời gian từ khi commit đến khi chạy trên môi trường vận hành
+  (lead time for changes).
+  \item \textbf{Độ ổn định (stability):} tỉ lệ thay đổi gây lỗi (change failure
+  rate) và thời gian khôi phục dịch vụ sau một lần triển khai lỗi (time to
+  restore service; các báo cáo gần đây gọi là failed deployment recovery time).
+\end{itemize}
+Các chỉ số DORA được thiết kế để đo một tổ chức trong thời gian dài, nên không
+thể đo đầy đủ trong một môi trường thực nghiệm. Đề tài dùng chúng làm định
+hướng: các cổng bảo mật ảnh hưởng đến \textit{lead time}, còn Blue-Green và quay
+lui tự động ảnh hưởng đến \textit{time to restore}.
+
+\subsection{Các chỉ số dùng trong thực nghiệm}
+Bảng~\ref{tab:metrics} định nghĩa các chỉ số được đo trong
+Chương~\ref{chap:evaluation}.
+
+\begin{table}[!htbp]
+  \centering
+  \fontsize{11pt}{13.42pt}\selectfont
+  \renewcommand{\arraystretch}{1.25}
+  \begin{tabularx}{\textwidth}{|>{\raggedright\arraybackslash}p{0.25\textwidth}|>{\raggedright\arraybackslash}X|>{\centering\arraybackslash}p{0.10\textwidth}|}
+    \hline
+    \ctuTableHead{Chỉ số} & \ctuTableHead{Định nghĩa} & \ctuTableHead{Thực nghiệm} \\
+    \hline
+    Tỉ lệ phát hiện & Số kịch bản lỗi cố ý bị chặn trên tổng số kịch bản & E1 \\
+    \hline
+    Cảnh báo sai & Số cảnh báo không tương ứng với lỗ hổng thực sự & E1 \\
+    \hline
+    Thời gian pipeline & Thời gian từ khi workflow được kích hoạt đến khi image được xuất bản, và thời gian của từng job & E2 \\
+    \hline
+    Số yêu cầu lỗi & Số yêu cầu HTTP thất bại hoặc trả về mã 5xx trong lúc triển khai & E3 \\
+    \hline
+    Thời gian gián đoạn & Khoảng thời gian liên tục dài nhất mà mọi yêu cầu đều thất bại & E3 \\
+    \hline
+    Độ trễ p95 & Giá trị mà 95\% yêu cầu có thời gian phản hồi nhỏ hơn hoặc bằng & E3 \\
+    \hline
+    MTTR & Thời gian từ khi phiên bản lỗi bắt đầu nhận lưu lượng (hoặc bắt đầu triển khai) đến khi dịch vụ phục vụ bình thường trở lại & E4 \\
+    \hline
+  \end{tabularx}
+  \caption{Các chỉ số đánh giá trong thực nghiệm}
+  \label{tab:metrics}
+\end{table}
+\FloatBarrier
+
+Do thời gian chạy trên runner của GitHub và thời gian khởi động container dao
+động giữa các lần chạy, mỗi thực nghiệm định lượng được lặp lại nhiều lần; kết
+quả được báo cáo dưới dạng giá trị trung bình kèm độ lệch chuẩn, và trung vị khi
+phân bố bị lệch. Công cụ k6~\cite{k6} được dùng để tạo tải HTTP liên tục và ghi
+nhận các chỉ số E3.
 
 % -----------------------------------------------------------------------------
 % CHƯƠNG III
@@ -1611,6 +2000,38 @@ SLSA cấp cao hơn.}
   \bibitem{nvd-xz}
   NIST National Vulnerability Database, ``CVE-2024-3094'',
   \url{https://nvd.nist.gov/vuln/detail/CVE-2024-3094}.
+
+  \bibitem{cvss}
+  FIRST, ``Common Vulnerability Scoring System v3.1: Specification Document'',
+  \url{https://www.first.org/cvss/v3.1/specification-document}.
+
+  \bibitem{codeql}
+  GitHub, ``CodeQL documentation'', \url{https://codeql.github.com/docs/}.
+
+  \bibitem{findsecbugs}
+  Find Security Bugs, ``The SpotBugs plugin for security audits of Java web
+  applications'', \url{https://find-sec-bugs.github.io/}.
+
+  \bibitem{dependency-check}
+  OWASP, ``Dependency-Check'',
+  \url{https://owasp.org/www-project-dependency-check/}.
+
+  \bibitem{gitleaks}
+  Gitleaks, \url{https://github.com/gitleaks/gitleaks}.
+
+  \bibitem{spdx}
+  ISO/IEC 5962:2021, ``Information technology -- SPDX\textsuperscript{\textregistered}
+  Specification V2.2.1'', 2021.
+
+  \bibitem{cyclonedx}
+  OWASP, ``CycloneDX Bill of Materials Standard'', \url{https://cyclonedx.org/}.
+
+  \bibitem{nginx-control}
+  NGINX, ``Controlling nginx'', \url{https://nginx.org/en/docs/control.html}.
+
+  \bibitem{docker-healthcheck}
+  Docker, ``Dockerfile reference -- HEALTHCHECK'',
+  \url{https://docs.docker.com/reference/dockerfile/\#healthcheck}.
 
   \bibitem{eo14028}
   The White House, ``Executive Order 14028: Improving the Nation's
